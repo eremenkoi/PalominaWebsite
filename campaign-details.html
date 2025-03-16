@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Campaign Details</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    header { text-align: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    table, th, td { border: 1px solid #ccc; }
+    th, td { padding: 8px; text-align: left; white-space: nowrap; }
+    .download-btn {
+      margin: 20px 0;
+      padding: 10px 20px;
+      background: #333;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Campaign Details</h1>
+    <p id="campaignTitle">Loading campaign details...</p>
+  </header>
+  <div id="jobTracker">
+    <!-- Job tracker table will be inserted here -->
+  </div>
+  <button class="download-btn" onclick="downloadCSV()">Download CSV</button>
+
+  <script>
+    // Helper: Get query parameter from URL
+    function getQueryParam(param) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(param);
+    }
+
+    async function loadCampaignDetails() {
+      const campaignId = getQueryParam("campaignId");
+      if (!campaignId) {
+        document.getElementById("campaignTitle").innerText = "No campaign ID provided.";
+        return;
+      }
+      // Optionally, fetch campaign summary details via your fetchCampaigns function
+      // For now, we'll focus on fetching jobs related to this campaign
+      const filter = `FIND("${campaignId}", {Campaign})`;
+      const res = await fetch(`/.netlify/functions/fetchJobs?filter=${encodeURIComponent(filter)}`);
+      const data = await res.json();
+
+      // Update campaign title (if available, or use campaignId)
+      document.getElementById("campaignTitle").innerText = "Campaign ID: " + campaignId;
+
+      if (data && data.records) {
+        let html = "<table><thead><tr><th>Job Number</th><th>Job Name</th><th>Talent</th><th>Contract Ends</th></tr></thead><tbody>";
+        data.records.forEach(record => {
+          const fields = record.fields;
+          html += `<tr>
+                     <td>${fields["Job Number"] || ""}</td>
+                     <td>${fields["Job Name"] || ""}</td>
+                     <td>${fields["Talent"] || ""}</td>
+                     <td>${fields["Contract Ends (Calculated)"] || ""}</td>
+                   </tr>`;
+        });
+        html += "</tbody></table>";
+        document.getElementById("jobTracker").innerHTML = html;
+      } else {
+        document.getElementById("jobTracker").innerHTML = `<p class="error">Error loading jobs: ${data.error || 'Unknown error'}</p>`;
+      }
+    }
+
+    function downloadCSV() {
+      // This function can be enhanced to dynamically create CSV from fetched data.
+      const csv = "Job Number,Job Name,Talent,Contract Ends\nExample,Example,Example,Example";
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.setAttribute("href", URL.createObjectURL(blob));
+      link.setAttribute("download", "job_tracker.csv");
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    window.onload = loadCampaignDetails;
+  </script>
+</body>
+</html>
