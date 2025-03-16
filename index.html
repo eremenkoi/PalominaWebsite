@@ -2,87 +2,137 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>PaloPay Client Portal</title>
+  <title>PaloPay Client Portal MVP</title>
   <style>
-    /* Basic layout styles */
+    /* Basic styling for the MVP */
     body {
       font-family: Arial, sans-serif;
       margin: 0;
-      padding: 0;
+      padding: 20px;
       background: #f9f9f9;
     }
     header {
-      background: #333;
-      color: #fff;
-      padding: 1em;
       text-align: center;
+      margin-bottom: 20px;
     }
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 1em;
+    section {
+      margin-bottom: 40px;
     }
-    .button-group {
-      margin: 1em 0;
-      text-align: center;
+    h2 {
+      color: #333;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 8px;
     }
-    .button-group button {
-      margin: 0 0.5em;
-      padding: 0.5em 1em;
-      cursor: pointer;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
     }
-    #functionOutput {
-      background: #eee;
-      padding: 1em;
-      margin-top: 1em;
-      white-space: pre-wrap;
+    table, th, td {
       border: 1px solid #ccc;
-      border-radius: 4px;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+    }
+    .error {
+      color: red;
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>PaloPay Client Portal</h1>
-    <p>Your campaigns and jobs at a glance</p>
+    <h1>PaloPay Client Portal MVP</h1>
+    <p>Displaying Campaigns and Jobs where Client = "Sunday Gravy"</p>
   </header>
 
-  <div class="container">
-    <!-- Button group for testing functions -->
-    <div class="button-group">
-      <button id="testCampaigns">Test Campaigns Function</button>
-      <button id="testJobs">Test Jobs Function</button>
-    </div>
-    <!-- Output area for function results -->
-    <div id="functionOutput">Function output will appear here.</div>
+  <section id="campaignsSection">
+    <h2>Campaigns</h2>
+    <div id="campaignsOutput">Loading campaigns…</div>
+  </section>
 
-    <!-- Your additional site content can go here -->
-  </div>
+  <section id="jobsSection">
+    <h2>Jobs</h2>
+    <div id="jobsOutput">Loading jobs…</div>
+  </section>
 
   <script>
-    // Utility function to call a Netlify Function endpoint and display the result.
-    async function testFunction(endpoint) {
-      const outputEl = document.getElementById('functionOutput');
-      outputEl.innerText = 'Loading...';
+    // Utility function: fetch data from a Netlify function endpoint using a filter
+    async function fetchData(endpoint, filterFormula) {
+      const url = `/.netlify/functions/${endpoint}?filter=${encodeURIComponent(filterFormula)}`;
       try {
-        const response = await fetch(`/.netlify/functions/${endpoint}`);
+        const response = await fetch(url);
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
-        const data = await response.json();
-        outputEl.innerText = JSON.stringify(data, null, 2);
+        return await response.json();
       } catch (err) {
-        outputEl.innerText = 'Error: ' + err;
+        console.error(err);
+        return { error: err.toString() };
       }
     }
 
-    // Set up event listeners on the test buttons.
-    document.getElementById('testCampaigns').addEventListener('click', () => {
-      testFunction('fetchCampaigns');
-    });
-    document.getElementById('testJobs').addEventListener('click', () => {
-      testFunction('fetchJobs');
-    });
+    // Utility function: render an array of records in a table
+    function renderTable(records, container) {
+      if (!records || records.length === 0) {
+        container.innerHTML = "<p>No records found.</p>";
+        return;
+      }
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      const tbody = document.createElement("tbody");
+
+      // Use keys from the first record's fields as table headers
+      const headers = Object.keys(records[0].fields);
+      const headerRow = document.createElement("tr");
+      headers.forEach(header => {
+        const th = document.createElement("th");
+        th.innerText = header;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+
+      // Create rows for each record
+      records.forEach(record => {
+        const row = document.createElement("tr");
+        headers.forEach(header => {
+          const td = document.createElement("td");
+          td.innerText = record.fields[header] || "";
+          row.appendChild(td);
+        });
+        tbody.appendChild(row);
+      });
+
+      table.appendChild(thead);
+      table.appendChild(tbody);
+      container.innerHTML = "";
+      container.appendChild(table);
+    }
+
+    // Load data for both Campaigns and Jobs
+    async function loadData() {
+      const filter = '{Client} = "Sunday Gravy"';
+
+      // Fetch and render Campaigns
+      const campaignsData = await fetchData('fetchCampaigns', filter);
+      const campaignsContainer = document.getElementById("campaignsOutput");
+      if (campaignsData && campaignsData.records) {
+        renderTable(campaignsData.records, campaignsContainer);
+      } else {
+        campaignsContainer.innerHTML = `<p class="error">Error loading campaigns: ${campaignsData.error || 'Unknown error'}</p>`;
+      }
+
+      // Fetch and render Jobs
+      const jobsData = await fetchData('fetchJobs', filter);
+      const jobsContainer = document.getElementById("jobsOutput");
+      if (jobsData && jobsData.records) {
+        renderTable(jobsData.records, jobsContainer);
+      } else {
+        jobsContainer.innerHTML = `<p class="error">Error loading jobs: ${jobsData.error || 'Unknown error'}</p>`;
+      }
+    }
+
+    window.onload = loadData;
   </script>
 </body>
 </html>
