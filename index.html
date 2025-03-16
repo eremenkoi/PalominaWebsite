@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PaloPay Client Portal</title>
+  <style>
+    /* Basic layout styles */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+    }
+    header {
+      background: #333;
+      color: #fff;
+      padding: 1em;
+      text-align: center;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1em;
+    }
+    .button-group {
+      margin: 1em 0;
+      text-align: center;
+    }
+    .button-group button {
+      margin: 0 0.5em;
+      padding: 0.5em 1em;
+      cursor: pointer;
+    }
+    #functionOutput {
+      background: #eee;
+      padding: 1em;
+      margin-top: 1em;
+      white-space: pre-wrap;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>PaloPay Client Portal</h1>
+    <p>Your campaigns and jobs at a glance</p>
+  </header>
+
+  <div class="container">
+    <!-- Button group for testing functions -->
+    <div class="button-group">
+      <button id="testCampaigns">Test Campaigns Function</button>
+      <button id="testJobs">Test Jobs Function</button>
+    </div>
+    <!-- Output area for function results -->
+    <div id="functionOutput">Function output will appear here.</div>
+
+    <!-- Your additional site content can go here -->
+  </div>
+
+  <script>
+    // Utility function to call a Netlify Function endpoint and display the result.
+    async function testFunction(endpoint) {
+      const outputEl = document.getElementById('functionOutput');
+      outputEl.innerText = 'Loading...';
+      try {
+        const response = await fetch(`/.netlify/functions/${endpoint}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+        outputEl.innerText = JSON.stringify(data, null, 2);
+      } catch (err) {
+        outputEl.innerText = 'Error: ' + err;
+      }
+    }
+
+    // Set up event listeners on the test buttons.
+    document.getElementById('testCampaigns').addEventListener('click', () => {
+      testFunction('fetchCampaigns');
+    });
+    document.getElementById('testJobs').addEventListener('click', () => {
+      testFunction('fetchJobs');
+    });
+  </script>
+</body>
+</html>
