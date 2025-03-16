@@ -1,4 +1,10 @@
 // netlify/functions/fetchJobs.js
+// At the top of your function file
+console.log("AIRTABLE_API_KEY exists?", !!process.env.AIRTABLE_API_KEY);
+console.log("AIRTABLE_BASE_ID:", process.env.AIRTABLE_BASE_ID);
+
+
+
 const fetch = require('node-fetch');
 
 exports.handler = async (event, context) => {
@@ -12,6 +18,9 @@ exports.handler = async (event, context) => {
 
   // Construct the Airtable API URL for the Jobs table.
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}${filter ? '?filterByFormula=' + encodeURIComponent(filter) : ''}`;
+
+  // Before calling fetch:
+console.log("Requesting URL:", url);
 
   try {
     const response = await fetch(url, {
