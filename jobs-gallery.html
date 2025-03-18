@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Jobs Gallery</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+    }
+    .job-card {
+      background: #fff;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .job-card:hover {
+      transform: scale(1.02);
+    }
+    .back-btn {
+      margin: 10px 0;
+      padding: 8px 16px;
+      background: #333;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Jobs Gallery</h1>
+    <button class="back-btn" onclick="window.history.back()">Back</button>
+  </header>
+
+  <div id="jobsGallery" class="gallery-grid">
+    Loading jobs...
+  </div>
+
+  <script>
+    // Helper: Get query parameter from the URL
+    function getQueryParam(param) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(param);
+    }
+
+    async function loadJobs() {
+      const container = document.getElementById("jobsGallery");
+      // Read campaignId from the URL
+      const campaignId = getQueryParam("campaignId");
+
+      if (!campaignId) {
+        container.innerHTML = "<p class='error'>No campaignId provided in the URL.</p>";
+        return;
+      }
+
+      console.log(`Loading Jobs for Campaign ID: ${campaignId}`);
+
+      // Call fetchJobsByCampaign with campaignId
+      const url = `/.netlify/functions/fetchJobsByCampaign?campaignId=${encodeURIComponent(campaignId)}`;
+      console.log("Requesting:", url);
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+
+        if (!data.records || data.records.length === 0) {
+          container.innerHTML = `<p>No jobs found for this campaign.</p>`;
+          return;
+        }
+
+        // Build job cards
+        container.innerHTML = "";
+        data.records.forEach(record => {
+          const fields = record.fields;
+          const card = document.createElement("div");
+          card.className = "job-card";
+
+          // When clicked, navigate to job-details.html using "Job Number"
+          card.onclick = () => {
+            window.location.href = `job-details.html?jobNumber=${encodeURIComponent(fields["Job Number"] || "")}`;
+          };
+
+          card.innerHTML = `
+            <h3>${fields["Job Number"] || "No Job Number"}</h3>
+            <p>${fields["Job Name"] || "No Job Name"}</p>
+          `;
+          container.appendChild(card);
+        });
+      } catch (err) {
+        container.innerHTML = `<p class='error'>Error loading jobs: ${err.message}</p>`;
+      }
+    }
+
+    window.onload = loadJobs;
+  </script>
+</body>
+</html>

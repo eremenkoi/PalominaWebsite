@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Job Tracker Details</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .back-btn {
+      margin-bottom: 20px;
+      padding: 8px 16px;
+      background: #333;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    /* Scrollable table container */
+    .table-container {
+      max-width: 100%;
+      overflow-x: auto; /* Horizontal scroll if needed */
+    }
+    table {
+      width: auto;             /* Let columns size to content */
+      table-layout: auto;      /* Let columns size to content */
+      border-collapse: collapse;
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;     /* Prevent wrapping for horizontal scroll */
+    }
+    img.attachment-preview {
+      max-width: 100px;
+      height: auto;
+      border-radius: 4px;
+      margin-right: 8px;
+    }
+    a.attachment-link {
+      display: inline-block;
+      margin-right: 8px;
+      color: blue;
+      text-decoration: underline;
+    }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <button class="back-btn" onclick="window.history.back()">Back</button>
+  <header>
+    <h1>Job Tracker Details</h1>
+  </header>
+  <div id="jobTrackerContainer">Loading job details...</div>
+
+  <script>
+    // Helper: Get query parameter from the URL
+    function getQueryParam(param) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(param);
+    }
+
+    async function loadJobTracker() {
+      const jobNumber = getQueryParam("jobNumber");
+      if (!jobNumber) {
+        document.getElementById("jobTrackerContainer").innerHTML = "<p class='error'>No job number provided.</p>";
+        return;
+      }
+
+      // Call the Netlify function that fetches Job Tracker records
+      const url = `/.netlify/functions/fetchJobTracker?jobNumber=${encodeURIComponent(jobNumber)}`;
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        const container = document.getElementById("jobTrackerContainer");
+        if (!data.records || data.records.length === 0) {
+          container.innerHTML = "<p>No job tracker records found for this job.</p>";
+          return;
+        }
+
+        // Build a horizontally scrollable table
+        let html = '<div class="table-container"><table><thead><tr>';
+
+        // Use the field keys from the first record to build column headers
+        const headers = Object.keys(data.records[0].fields);
+        headers.forEach(header => {
+          html += `<th>${header}</th>`;
+        });
+        html += "</tr></thead><tbody>";
+
+        // Build a row for each record
+        data.records.forEach(record => {
+          html += "<tr>";
+          headers.forEach(header => {
+            let cellValue = record.fields[header];
+
+            // If it's an array (could be attachments or expanded linked records)
+            if (Array.isArray(cellValue)) {
+              if (cellValue.length > 0 && cellValue[0].url) {
+                // It's an attachment array
+                cellValue = cellValue.map(attachment => {
+                  const fileType = attachment.type || "";
+                  // If it's an image, display a preview
+                  if (fileType.startsWith("image/")) {
+                    return `<img src="${attachment.url}" class="attachment-preview" alt="Attachment" />`;
+                  } else {
+                    // Otherwise, clickable link
+                    return `<a href="${attachment.url}" class="attachment-link" target="_blank">${attachment.filename}</a>`;
+                  }
+                }).join(" ");
+              } else if (cellValue.length > 0 && cellValue[0].fields) {
+                // It's an expanded linked record array
+                // Display the primary field, e.g. "Name"
+                cellValue = cellValue.map(item => item.fields["Name"] || item.id).join(", ");
+              } else {
+                // Just an array of strings or empty
+                cellValue = cellValue.join(", ");
+              }
+            } else if (!cellValue) {
+              cellValue = "";
+            }
+
+            html += `<td>${cellValue}</td>`;
+          });
+          html += "</tr>";
+        });
+
+        html += "</tbody></table></div>";
+        container.innerHTML = html;
+      } catch (error) {
+        document.getElementById("jobTrackerContainer").innerHTML = `<p class="error">Error loading job details: ${error}</p>`;
+      }
+    }
+
+    window.onload = loadJobTracker;
+  </script>
+</body>
+</html>

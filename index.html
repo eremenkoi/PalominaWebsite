@@ -11,7 +11,16 @@
       padding: 20px;
       background: #f9f9f9;
     }
-    header {
+    header.global-header {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    header.global-header img {
+      max-width: 200px;
+      display: block;
+      margin: 0 auto;
+    }
+    header.main-header {
       text-align: center;
       margin-bottom: 20px;
     }
@@ -31,18 +40,17 @@
       border-color: #333;
       font-weight: bold;
     }
-    /* Views */
     .view {
       display: none;
     }
     .view.active {
       display: block;
     }
-    /* Calendar View Styles */
+    /* Table Container (Calendar View) */
     .table-container {
       overflow-x: auto;
       overflow-y: auto;
-      max-height: 33vh; /* About one third of the viewport height */
+      max-height: 33vh;
       width: 100%;
       border: 1px solid #ccc;
       margin-top: 10px;
@@ -59,13 +67,13 @@
       text-align: left;
       white-space: nowrap;
     }
-    /* Campaign Gallery Styles */
+    /* Gallery Grid */
     .gallery-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
       gap: 20px;
     }
-    .campaign-card {
+    .campaign-card, .job-card {
       background: #fff;
       padding: 15px;
       border: 1px solid #ddd;
@@ -73,21 +81,25 @@
       cursor: pointer;
       transition: transform 0.2s;
     }
-    .campaign-card:hover {
+    .campaign-card:hover, .job-card:hover {
       transform: scale(1.02);
     }
-    .campaign-card img {
+    .campaign-card img, .job-card img {
       width: 100%;
       height: auto;
       border-radius: 3px;
     }
-    .error {
-      color: red;
-    }
+    .error { color: red; }
   </style>
 </head>
 <body>
-  <header>
+  <!-- Global Header with Logo -->
+  <header class="global-header">
+    <img src="sunday-gravy-logo.png" alt="Sunday Gravy Logo">
+  </header>
+
+  <!-- Main Header -->
+  <header class="main-header">
     <h1>PaloPay Client Portal</h1>
     <p>Dashboard – Select a view below</p>
   </header>
@@ -95,7 +107,8 @@
   <!-- Tab Navigation -->
   <div class="tabs">
     <div class="tab active" data-target="calendarView">Calendar View</div>
-    <div class="tab" data-target="galleryView">Campaign Gallery</div>
+    <div class="tab" data-target="campaignGallery">Campaign Gallery</div>
+    <div class="tab" data-target="jobsGallery">Jobs Gallery</div>
   </div>
 
   <!-- Calendar View -->
@@ -106,22 +119,28 @@
       <button onclick="loadCalendar()">Search</button>
     </div>
     <div id="calendarTableContainer" class="table-container">
-      <!-- Table data will be inserted here -->
       Loading contracts...
     </div>
   </div>
 
   <!-- Campaign Gallery View -->
-  <div id="galleryView" class="view">
+  <div id="campaignGallery" class="view">
     <h2>Campaign Gallery</h2>
-    <div id="galleryContent" class="gallery-grid">
-      <!-- Campaign cards will be inserted here -->
+    <div id="campaignGalleryContent" class="gallery-grid">
       Loading campaigns...
     </div>
   </div>
 
+  <!-- Jobs Gallery View -->
+  <div id="jobsGallery" class="view">
+    <h2>Jobs Gallery</h2>
+    <div id="jobsGalleryContent" class="gallery-grid">
+      Loading jobs...
+    </div>
+  </div>
+
   <script>
-    // Utility: Fetch data from a Netlify function endpoint using a filter
+    // Utility: Fetch data from Netlify function with a filter
     async function fetchData(endpoint, filterFormula) {
       const url = `/.netlify/functions/${endpoint}?filter=${encodeURIComponent(filterFormula)}`;
       try {
@@ -136,9 +155,8 @@
       }
     }
 
-    // Calendar View: Load and render job contracts
+    // Calendar View: Load and render jobs in a table
     async function loadCalendar() {
-      // For example, filter by job number if provided; otherwise use a default filter.
       const filterInput = document.getElementById('jobFilter').value;
       const filter = filterInput ? `{Job Number} = "${filterInput}"` : '{Client} = "Sunday Gravy"';
       const data = await fetchData('fetchJobs', filter);
@@ -149,6 +167,7 @@
                         <tr>
                           <th>Job Number</th>
                           <th>Job Name</th>
+                          <th>Contract Term</th>
                           <th>Contract Ends</th>
                         </tr>
                       </thead>
@@ -156,8 +175,9 @@
         data.records.forEach(record => {
           const fields = record.fields;
           html += `<tr>
-                     <td>${fields["Job Number"] || ""}</td>
-                     <td>${fields["Job Name"] || ""}</td>
+                     <td><a href="job-details.html?jobNumber=${encodeURIComponent(fields["Job Number"] || "")}">${fields["Job Number"] || ""}</a></td>
+                     <td><a href="job-details.html?jobNumber=${encodeURIComponent(fields["Job Number"] || "")}">${fields["Job Name"] || ""}</a></td>
+                     <td>${fields["Contract Term"] || ""}</td>
                      <td>${fields["Contract Ends (Calculated)"] || ""}</td>
                    </tr>`;
         });
@@ -168,21 +188,21 @@
       }
     }
 
-    // Gallery View: Load and render campaign cards
-    async function loadGallery() {
+    // Campaign Gallery: Load and render campaign cards
+    async function loadCampaignGallery() {
       const filter = '{Client} = "Sunday Gravy"';
       const data = await fetchData('fetchCampaigns', filter);
-      const container = document.getElementById('galleryContent');
+      const container = document.getElementById('campaignGalleryContent');
       container.innerHTML = "";
       if (data && data.records) {
         data.records.forEach(record => {
           const fields = record.fields;
-          const imageUrl = fields["Campaign Image"] || "placeholder.jpg"; // Adjust if your field name differs
+          const imageUrl = fields["Campaign Image"] || "placeholder.jpg";
           const card = document.createElement("div");
           card.className = "campaign-card";
-          // When a card is clicked, navigate to the campaign details page (to be created)
           card.onclick = () => {
-            window.location.href = `campaign-details.html?campaignId=${record.id}`;
+            // Navigate to jobs gallery filtered by campaignId
+            window.location.href = `jobs-gallery.html?campaignId=${record.id}`;
           };
           card.innerHTML = `
             <img src="${imageUrl}" alt="${fields["Campaign Name"]}">
@@ -197,13 +217,39 @@
       }
     }
 
-    // Initialize page load for both views
+    // Jobs Gallery: Load and render job cards
+    async function loadJobsGallery() {
+      const filter = '{Client} = "Sunday Gravy"';
+      const data = await fetchData('fetchJobs', filter);
+      const container = document.getElementById('jobsGalleryContent');
+      container.innerHTML = "";
+      if (data && data.records) {
+        data.records.forEach(record => {
+          const fields = record.fields;
+          const card = document.createElement("div");
+          card.className = "job-card";
+          card.onclick = () => {
+            window.location.href = `job-details.html?jobNumber=${encodeURIComponent(fields["Job Number"] || "")}`;
+          };
+          card.innerHTML = `
+            <h3>${fields["Job Number"] || "No Job Number"}</h3>
+            <p>${fields["Job Name"] || "No Job Name"}</p>
+          `;
+          container.appendChild(card);
+        });
+      } else {
+        container.innerHTML = `<p class="error">Error loading jobs: ${data.error || 'Unknown error'}</p>`;
+      }
+    }
+
+    // Initialize page load for all views
     window.onload = function() {
       loadCalendar();
-      loadGallery();
+      loadCampaignGallery();
+      loadJobsGallery();
     };
 
-    // Simple tab switching logic
+    // Tab switching logic
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', function() {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));

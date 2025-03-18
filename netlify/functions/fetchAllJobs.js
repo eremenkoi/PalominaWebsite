@@ -1,21 +1,18 @@
-// netlify/functions/fetchCampaigns.js
+// netlify/functions/fetchAllJobs.js
 
 const fetch = require('node-fetch');
 
 exports.handler = async (event) => {
   const API_KEY = process.env.AIRTABLE_API_KEY;
   const BASE_ID = process.env.AIRTABLE_BASE_ID;
-  // This should be the table ID for your Campaigns table!
-  const TABLE_ID = 'tbl8Ctde8oJ1FGP4y';
 
-  let filter = event.queryStringParameters && event.queryStringParameters.filter;
-  if (!filter) {
-    // Default filter if none is provided
-    filter = '{Client} = "Sunday Gravy"';
-  }
+  // The table ID for your Jobs table
+  const TABLE_ID = 'tbl9O07R90s6qdgtK';
 
-  const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?filterByFormula=${encodeURIComponent(filter)}`;
-  console.log("Requesting Campaigns URL:", url);
+  // We fetch all records, expanding the "Campaign" field, limiting to 1000 records
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?expand[]=Campaign&maxRecords=1000`;
+
+  console.log("fetchAllJobs => Requesting Airtable URL:", url);
 
   try {
     const response = await fetch(url, {
@@ -26,11 +23,16 @@ exports.handler = async (event) => {
       throw new Error(`Airtable error: ${response.status} ${errorText}`);
     }
     const data = await response.json();
+
+    // Log how many records we got
+    console.log(`fetchAllJobs => Received ${data.records ? data.records.length : 0} records from Airtable`);
+
     return {
       statusCode: 200,
       body: JSON.stringify(data)
     };
   } catch (err) {
+    console.error("Error in fetchAllJobs:", err);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.toString() })
