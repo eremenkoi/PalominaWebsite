@@ -1,5 +1,24 @@
 {
   "dependencies": {
+    "airtable": "^0.12.2",
     "node-fetch": "^2.7.0"
-  }
+  },
+  "name": "beautiful-profiterole-151465",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eremenkoi/PalominaWebsite.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/eremenkoi/PalominaWebsite/issues"
+  },
+  "homepage": "https://github.com/eremenkoi/PalominaWebsite#readme",
+  "description": ""
 }

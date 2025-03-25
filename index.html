@@ -67,6 +67,11 @@
       text-align: left;
       white-space: nowrap;
     }
+    /* Expiring date colors for table */
+    tr.expires-soon td {
+      background-color: #ffebee; /* Light red */
+      color: #c62828; /* Darker red text */
+    }
     /* Gallery Grid */
     .gallery-grid {
       display: grid;
@@ -90,20 +95,239 @@
       border-radius: 3px;
     }
     .error { color: red; }
+    .field-debug {
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      background-color: #f5f5f5;
+      padding: 10px;
+      border: 1px solid #ddd;
+      margin-bottom: 20px;
+      max-height: 400px;
+      overflow: auto;
+      display: none; /* Hidden by default */
+    }
+    .current-date {
+      text-align: center;
+      margin-bottom: 10px;
+      font-weight: bold;
+      color: #ff5252;
+      font-size: 16px;
+      background: #ffebee;
+      padding: 5px;
+      border-radius: 4px;
+    }
+
+    /* Enhanced Timeline Styles */
+    .timeline-container {
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #fff;
+      position: relative;
+      overflow-x: auto;
+      min-height: 300px; /* Ensure minimum height even when empty */
+    }
+
+    .timeline-ruler {
+      position: relative;
+      height: 30px;
+      border-bottom: 1px solid #ccc;
+      z-index: 1;
+    }
+
+    .timeline-month {
+      position: absolute;
+      border-left: 1px solid #aaa;
+      height: 15px;
+      top: 15px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .timeline-month span {
+      position: relative;
+      top: -15px;
+      left: 3px; /* Slightly offset to right of border */
+      white-space: nowrap;
+      color: #333;
+    }
+
+    .timeline-events {
+      position: relative;
+      min-height: 200px;
+      z-index: 2;
+      padding-top: 10px;
+    }
+
+    /* Today marker */
+    .timeline-today {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background-color: #ff4d4d;
+      z-index: 5;
+      box-shadow: 0 0 5px rgba(255, 0, 0, 0.3);
+    }
+
+    .timeline-today::after {
+      content: "Today";
+      position: absolute;
+      top: -25px;
+      left: -20px;
+      background: #ff4d4d;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      white-space: nowrap;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Timeline event styling */
+    .timeline-event {
+      position: absolute;
+      background: #e8f5e9;
+      border: 1px solid #4caf50;
+      border-radius: 4px;
+      padding: 6px 8px;
+      min-width: 100px;
+      font-size: 12px;
+      cursor: pointer;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+      z-index: 3;
+    }
+
+    .timeline-event:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+      z-index: 10;
+    }
+
+    .timeline-event .event-title {
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .timeline-event .event-dates {
+      font-size: 10px;
+      opacity: 0.9;
+      margin-top: 3px;
+    }
+
+    /* Different status styles */
+    .timeline-event-active {
+      background: #e3f2fd;
+      border-color: #2196f3;
+      color: #0d47a1;
+    }
+
+    .timeline-event-expiring {
+      background: #fff8e1;
+      border-color: #ffc107;
+      color: #ff6f00;
+    }
+
+    .timeline-event-expired {
+      background: #f5f5f5;
+      border-color: #9e9e9e;
+      color: #616161;
+      opacity: 0.85;
+    }
+
+    /* Timeline filter controls */
+    .timeline-controls {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .timeline-filters {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .timeline-filters label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .timeline-filter-active {
+      color: #0d47a1;
+    }
+
+    .timeline-filter-expiring {
+      color: #ff6f00;
+    }
+
+    .timeline-filter-expired {
+      color: #616161;
+    }
+
+    /* Timeline legend */
+    .timeline-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin: 15px 0;
+      border-top: 1px solid #eee;
+      padding-top: 10px;
+      font-size: 12px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    .color-active {
+      background: #e3f2fd;
+      border: 1px solid #2196f3;
+    }
+
+    .color-expiring {
+      background: #fff8e1;
+      border: 1px solid #ffc107;
+    }
+
+    .color-expired {
+      background: #f5f5f5;
+      border: 1px solid #9e9e9e;
+    }
   </style>
 </head>
 <body>
-  <!-- Global Header with Logo -->
+  <!-- Global Header -->
   <header class="global-header">
     <img src="sunday-gravy-logo.png" alt="Sunday Gravy Logo">
   </header>
-
   <!-- Main Header -->
   <header class="main-header">
     <h1>PaloPay Client Portal</h1>
     <p>Dashboard – Select a view below</p>
+    <div class="current-date" id="currentDate"></div>
   </header>
-
   <!-- Tab Navigation -->
   <div class="tabs">
     <div class="tab active" data-target="calendarView">Calendar View</div>
@@ -113,7 +337,50 @@
 
   <!-- Calendar View -->
   <div id="calendarView" class="view active">
-    <h2>Upcoming Expiring Contracts</h2>
+    <h2>Contract Timeline</h2>
+
+    <!-- Debug Section -->
+    <div id="debugOutput" class="field-debug"></div>
+    <button onclick="toggleDebug()" style="margin-bottom: 10px;">Toggle Debug Info</button>
+
+    <!-- Timeline Controls -->
+    <div class="timeline-controls">
+      <div>
+        <label><input type="checkbox" id="showExpired" checked> Show Expired</label>
+        <label><input type="checkbox" id="showActive" checked> Show Active</label>
+        <label><input type="checkbox" id="showUpcoming" checked> Show Upcoming</label>
+      </div>
+      <div>
+        <button id="zoomOut">-</button>
+        <button id="zoomReset">Reset Zoom</button>
+        <button id="zoomIn">+</button>
+        <button id="centerToday">Center on Today</button>
+      </div>
+    </div>
+
+    <!-- Timeline Legend -->
+    <div class="timeline-legend">
+      <div class="legend-item">
+        <span class="legend-color color-active"></span>
+        <span>Active Contract</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-color color-expiring"></span>
+        <span>Expiring Soon (within 30 days)</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-color color-expired"></span>
+        <span>Expired Contract</span>
+      </div>
+    </div>
+
+    <!-- Timeline Component -->
+    <div id="timeline-container" class="timeline-container">
+      <div id="timeline-ruler" class="timeline-ruler"></div>
+      <div id="timeline-events" class="timeline-events"></div>
+    </div>
+
+    <h2>Contracts</h2>
     <div>
       <input type="text" id="jobFilter" placeholder="Filter by Job Number" />
       <button onclick="loadCalendar()">Search</button>
@@ -140,114 +407,440 @@
   </div>
 
   <script>
-    // Utility: Fetch data from Netlify function with a filter
-    async function fetchData(endpoint, filterFormula) {
-      const url = `/.netlify/functions/${endpoint}?filter=${encodeURIComponent(filterFormula)}`;
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        return await response.json();
-      } catch (err) {
-        console.error(err);
-        return { error: err.toString() };
-      }
+    // Toggle debug info
+    function toggleDebug() {
+      const debugEl = document.getElementById('debugOutput');
+      debugEl.style.display = debugEl.style.display === 'none' ? 'block' : 'none';
     }
 
-    // Calendar View: Load and render jobs in a table
+    // Set current date in header
+    const TODAY = new Date();
+    document.getElementById('currentDate').textContent =
+      `Today: ${TODAY.toLocaleDateString('en-AU')}`;
+
+    // Global settings for timeline
+    let pxPerDay = 20; // Default zoom level
+    let currentRecords = []; // Store records for filtering/zooming without re-fetching
+
+    // Add event listeners for timeline controls
+    document.getElementById('zoomIn').addEventListener('click', function() {
+      pxPerDay = Math.min(pxPerDay * 1.5, 50); // Limit max zoom
+      renderTimeline(currentRecords);
+    });
+
+    document.getElementById('zoomOut').addEventListener('click', function() {
+      pxPerDay = Math.max(pxPerDay / 1.5, 5); // Limit min zoom
+      renderTimeline(currentRecords);
+    });
+
+    document.getElementById('zoomReset').addEventListener('click', function() {
+      pxPerDay = 20; // Reset to default
+      renderTimeline(currentRecords);
+    });
+
+    document.getElementById('centerToday').addEventListener('click', function() {
+      const container = document.getElementById('timeline-container');
+      const todayMarker = container.querySelector('.timeline-today');
+      if (todayMarker) {
+        container.scrollLeft = todayMarker.offsetLeft - (container.clientWidth / 2);
+      }
+    });
+
+    // Add filter change handlers
+    document.getElementById('showExpired').addEventListener('change', function() {
+      renderTimeline(currentRecords);
+    });
+
+    document.getElementById('showActive').addEventListener('change', function() {
+      renderTimeline(currentRecords);
+    });
+
+    document.getElementById('showUpcoming').addEventListener('change', function() {
+      renderTimeline(currentRecords);
+    });
+
+    // Improved date parser that handles multiple formats
+    function parseDate(dateStr) {
+      if (!dateStr) return null;
+
+      // Clean the string
+      const cleanStr = dateStr.trim();
+
+      // ISO format: YYYY-MM-DD
+      const isoMatch = cleanStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (isoMatch) {
+        const [_, year, month, day] = isoMatch;
+        const date = new Date(Number(year), Number(month) - 1, Number(day));
+        return date;
+      }
+
+      // DD/MM/YYYY format (Australian)
+      const dmyMatch = cleanStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (dmyMatch) {
+        const [_, day, month, year] = dmyMatch;
+        const date = new Date(Number(year), Number(month) - 1, Number(day));
+        return date;
+      }
+
+      // MM/DD/YYYY format (US)
+      const mdyMatch = cleanStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (mdyMatch && !dmyMatch) { // Only try as MM/DD if we haven't matched DD/MM
+        const [_, month, day, year] = mdyMatch;
+        const date = new Date(Number(year), Number(month) - 1, Number(day));
+        return date;
+      }
+
+      // "Month Day, Year" format (e.g., "January 15, 2023")
+      const monthNameMatch = cleanStr.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+      if (monthNameMatch) {
+        const [_, monthName, day, year] = monthNameMatch;
+        // Use a safe way to get month index
+        const monthIndex = new Date(`${monthName} 1, 2000`).getMonth();
+        if (!isNaN(monthIndex)) {
+          const date = new Date(Number(year), monthIndex, Number(day));
+          return date;
+        }
+      }
+
+      // Try standard Date parsing as last resort
+      try {
+        const parsed = new Date(cleanStr);
+        if (!isNaN(parsed.getTime())) {
+          return parsed;
+        }
+      } catch (e) {
+        console.warn("Date parsing error:", e);
+      }
+
+      console.warn("Failed to parse date:", dateStr);
+      return null;
+    }
+
+    // Function to display dates consistently
+    function formatDate(date) {
+      if (!date || isNaN(date.getTime())) return "";
+      return date.toLocaleDateString('en-AU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+
+    // Load Airtable records and render table and timeline
     async function loadCalendar() {
-      const filterInput = document.getElementById('jobFilter').value;
-      const filter = filterInput ? `{Job Number} = "${filterInput}"` : '{Client} = "Sunday Gravy"';
-      const data = await fetchData('fetchJobs', filter);
       const container = document.getElementById('calendarTableContainer');
-      if (data && data.records) {
+      container.innerHTML = `<p>Loading contracts...</p>`;
+
+      try {
+        const data = await fetchData('fetchJobs');
+
+        if (data.error || !data.records) {
+          container.innerHTML = `<p class="error">Error loading contracts: ${data.error || 'Unknown error'}</p>`;
+          return;
+        }
+
+        // Show raw data in debug panel
+        if (document.getElementById('debugOutput').style.display !== 'none') {
+          document.getElementById('debugOutput').textContent = JSON.stringify(data.records.slice(0, 3), null, 2);
+        }
+
+        // Process records with our enhanced date parser
+        const processedRecords = data.records
+          .map(record => {
+            const fields = record.fields;
+            const firstOnAir = parseDate(fields["First On Air"]);
+            const contractEnd = parseDate(fields["Contract Ends (Calculated) Date For Sorting"]);
+
+            return { ...record, firstOnAir, contractEnd };
+          })
+          .filter(record => record.firstOnAir && record.contractEnd);
+
+        // Store for later filtering/zooming
+        currentRecords = processedRecords;
+
+        // Sort by start date for the table
+        const sortedRecords = [...processedRecords].sort((a, b) => a.firstOnAir - b.firstOnAir);
+
+        // Build contracts table
         let html = `<table>
-                      <thead>
-                        <tr>
-                          <th>Job Number</th>
-                          <th>Job Name</th>
-                          <th>Contract Term</th>
-                          <th>Contract Ends</th>
-                        </tr>
-                      </thead>
-                      <tbody>`;
-        data.records.forEach(record => {
-          const fields = record.fields;
-          html += `<tr>
-                     <td><a href="job-details.html?jobNumber=${encodeURIComponent(fields["Job Number"] || "")}">${fields["Job Number"] || ""}</a></td>
-                     <td><a href="job-details.html?jobNumber=${encodeURIComponent(fields["Job Number"] || "")}">${fields["Job Name"] || ""}</a></td>
-                     <td>${fields["Contract Term"] || ""}</td>
-                     <td>${fields["Contract Ends (Calculated)"] || ""}</td>
-                   </tr>`;
+                    <thead>
+                      <tr>
+                        <th>Job Number</th>
+                        <th>Job Name</th>
+                        <th>First On Air</th>
+                        <th>Contract Ends</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>`;
+
+        sortedRecords.forEach(record => {
+          // Determine job status
+          const TODAY = new Date();
+          TODAY.setHours(0, 0, 0, 0);
+
+          const isActive = record.firstOnAir <= TODAY && record.contractEnd >= TODAY;
+          const isExpiring = !isActive && record.contractEnd <= new Date(TODAY.getTime() + 30 * 86400000);
+          const isExpired = record.contractEnd < TODAY;
+
+          let statusClass = '';
+          let statusText = '';
+
+          if (isExpired) {
+            statusClass = 'expired';
+            statusText = 'Expired';
+          } else if (isActive) {
+            if (isExpiring) {
+              statusClass = 'expires-soon';
+              statusText = 'Expires Soon';
+            } else {
+              statusClass = 'active';
+              statusText = 'Active';
+            }
+          } else {
+            statusClass = 'upcoming';
+            statusText = 'Upcoming';
+          }
+
+          html += `<tr class="${statusClass}">
+                    <td>${record.fields["Job Number"] || ""}</td>
+                    <td>${record.fields["Job Name"] || ""}</td>
+                    <td>${formatDate(record.firstOnAir)}</td>
+                    <td>${formatDate(record.contractEnd)}</td>
+                    <td>${statusText}</td>
+                  </tr>`;
         });
+
         html += `</tbody></table>`;
         container.innerHTML = html;
-      } else {
-        container.innerHTML = `<p class="error">Error loading contracts: ${data.error || 'Unknown error'}</p>`;
+
+        // Render timeline
+        renderTimeline(processedRecords);
+
+      } catch (err) {
+        container.innerHTML = `<p class="error">Error loading contracts: ${err.message}</p>`;
+        console.error('Error in loadCalendar:', err);
       }
     }
 
-    // Campaign Gallery: Load and render campaign cards
-    async function loadCampaignGallery() {
-      const filter = '{Client} = "Sunday Gravy"';
-      const data = await fetchData('fetchCampaigns', filter);
-      const container = document.getElementById('campaignGalleryContent');
-      container.innerHTML = "";
-      if (data && data.records) {
-        data.records.forEach(record => {
-          const fields = record.fields;
-          const imageUrl = fields["Campaign Image"] || "placeholder.jpg";
-          const card = document.createElement("div");
-          card.className = "campaign-card";
-          card.onclick = () => {
-            // Navigate to jobs gallery filtered by campaignId
-            window.location.href = `jobs-gallery.html?campaignId=${record.id}`;
-          };
-          card.innerHTML = `
-            <img src="${imageUrl}" alt="${fields["Campaign Name"]}">
-            <h3>${fields["Campaign Name"] || "Unnamed Campaign"}</h3>
-            <p>On Air: ${fields["On Air Date"] || "N/A"} | Expires: ${fields["Exp Date"] || "N/A"}</p>
-            <p>Advertiser: ${fields["Advertiser"] || "N/A"}</p>
-          `;
-          container.appendChild(card);
-        });
-      } else {
-        container.innerHTML = `<p class="error">Error loading campaigns: ${data.error || 'Unknown error'}</p>`;
+    // Enhanced timeline renderer
+    function renderTimeline(records) {
+      // Explicitly set today to midnight for consistent comparison
+      const TODAY = new Date();
+      TODAY.setHours(0, 0, 0, 0);
+
+      // Calculate timeline range - show 6 months before today and 18 months after
+      const timelineStart = new Date(TODAY);
+      timelineStart.setMonth(TODAY.getMonth() - 6);
+      timelineStart.setDate(1); // Start at beginning of month
+      timelineStart.setHours(0, 0, 0, 0);
+
+      const timelineEnd = new Date(TODAY);
+      timelineEnd.setMonth(TODAY.getMonth() + 18);
+      timelineEnd.setDate(0); // End at end of month
+      timelineEnd.setHours(23, 59, 59, 999);
+
+      const MS_PER_DAY = 86400000;
+      const totalDays = Math.ceil((timelineEnd - timelineStart) / MS_PER_DAY);
+      const timelineWidth = totalDays * pxPerDay;
+
+      // Get DOM elements
+      const ruler = document.getElementById('timeline-ruler');
+      const eventsDiv = document.getElementById('timeline-events');
+
+      // Clear previous content
+      ruler.innerHTML = "";
+      eventsDiv.innerHTML = "";
+
+      // Set container widths
+      ruler.style.width = `${timelineWidth}px`;
+      eventsDiv.style.width = `${timelineWidth}px`;
+
+      // Render months on ruler
+      let monthPointer = new Date(timelineStart);
+      while (monthPointer <= timelineEnd) {
+        const daysFromStart = Math.floor((monthPointer - timelineStart) / MS_PER_DAY);
+        const marker = document.createElement("div");
+        marker.className = "timeline-month";
+        marker.style.left = `${daysFromStart * pxPerDay}px`;
+        marker.innerHTML = `<span>${monthPointer.toLocaleString('default', { month: 'short', year: 'numeric' })}</span>`;
+        ruler.appendChild(marker);
+
+        // Move to next month
+        monthPointer.setMonth(monthPointer.getMonth() + 1);
       }
+
+      // Render today marker
+      const todayOffset = Math.floor((TODAY - timelineStart) / MS_PER_DAY) * pxPerDay;
+      if (todayOffset >= 0 && todayOffset <= timelineWidth) {
+        const todayMarker = document.createElement("div");
+        todayMarker.className = "timeline-today";
+        todayMarker.style.left = `${todayOffset}px`;
+        eventsDiv.appendChild(todayMarker);
+      }
+
+      // Apply filters
+      const showExpired = document.getElementById('showExpired').checked;
+      const showActive = document.getElementById('showActive').checked;
+      const showUpcoming = document.getElementById('showUpcoming').checked;
+
+      const filteredRecords = records.filter(record => {
+        const isActive = record.firstOnAir <= TODAY && record.contractEnd >= TODAY;
+        const isExpired = record.contractEnd < TODAY;
+        const isUpcoming = record.firstOnAir > TODAY;
+
+        return (isActive && showActive) ||
+               (isExpired && showExpired) ||
+               (isUpcoming && showUpcoming);
+      });
+
+      // Organize records into lanes to prevent overlap
+      const lanes = [];
+
+      // First, sort records by start date
+      filteredRecords.sort((a, b) => a.firstOnAir - b.firstOnAir);
+
+      // Assign each record to a lane
+      filteredRecords.forEach(record => {
+        const { firstOnAir, contractEnd } = record;
+
+        // Skip invalid dates
+        if (!firstOnAir || !contractEnd) {
+          return;
+        }
+
+        // Determine if this job is within our timeline range
+        if (contractEnd < timelineStart || firstOnAir > timelineEnd) {
+          return; // Skip jobs outside our timeline range
+        }
+
+        // Find the first lane where this record doesn't overlap with existing records
+        let laneIndex = 0;
+        let placed = false;
+
+        while (!placed) {
+          if (!lanes[laneIndex]) {
+            lanes[laneIndex] = [];
+            placed = true;
+          } else {
+            // Check if this record overlaps with any record in the current lane
+            const overlaps = lanes[laneIndex].some(existingRecord => {
+              return (
+                (firstOnAir <= existingRecord.contractEnd &&
+                contractEnd >= existingRecord.firstOnAir)
+              );
+            });
+
+            if (!overlaps) {
+              placed = true;
+            } else {
+              laneIndex++;
+            }
+          }
+
+          if (placed) {
+            lanes[laneIndex].push(record);
+          }
+        }
+
+        // Store the lane assignment with the record
+        record.lane = laneIndex;
+      });
+
+      // Render events by lane
+      filteredRecords.forEach(record => {
+        if (record.lane === undefined) return; // Skip records without lane assignment
+
+        const { firstOnAir, contractEnd, lane } = record;
+
+        // Skip invalid dates (again as a safety check)
+        if (!firstOnAir || !contractEnd) return;
+
+        // Determine visible portion of the contract
+        const visibleStart = firstOnAir < timelineStart ? timelineStart : firstOnAir;
+        const visibleEnd = contractEnd > timelineEnd ? timelineEnd : contractEnd;
+
+        // Calculate position and dimensions
+        const leftPx = Math.floor((visibleStart - timelineStart) / MS_PER_DAY) * pxPerDay;
+        const widthPx = Math.max(
+          Math.ceil((visibleEnd - visibleStart) / MS_PER_DAY) * pxPerDay,
+          100 // Minimum width for very short contracts to ensure they're visible
+        );
+
+        // Determine status for styling
+        const isActive = firstOnAir <= TODAY && contractEnd >= TODAY;
+        const isExpiringSoon = !isActive && contractEnd <= new Date(TODAY.getTime() + 30 * MS_PER_DAY);
+        const isExpired = contractEnd < TODAY;
+
+        // Create event element
+        const block = document.createElement("div");
+        block.className = "timeline-event";
+
+        // Add status classes
+        if (isExpiringSoon) block.classList.add("timeline-event-expiring");
+        if (isExpired) block.classList.add("timeline-event-expired");
+        if (isActive) block.classList.add("timeline-event-active");
+
+        // Set position and dimensions
+        block.style.left = `${leftPx}px`;
+        block.style.width = `${widthPx}px`;
+        block.style.top = `${lane * 35 + 10}px`; // Position in assigned lane
+
+        // Set content with both dates for clarity
+        block.innerHTML = `
+          <div class="event-title">${record.fields["Job Name"] || "Unnamed Job"}</div>
+          <div class="event-dates">${formatDate(firstOnAir)} - ${formatDate(contractEnd)}</div>
+        `;
+
+        // Add click handler with error prevention
+        block.onclick = () => {
+          try {
+            // Store relevant job data in sessionStorage instead of relying solely on URL
+            const jobData = {
+              jobNumber: record.fields["Job Number"] || "",
+              jobName: record.fields["Job Name"] || "",
+              firstOnAir: formatDate(firstOnAir),
+              contractEnd: formatDate(contractEnd)
+            };
+
+            sessionStorage.setItem('currentJobData', JSON.stringify(jobData));
+
+            // Navigate with fallback
+            try {
+              window.location.href = `job-details.html?jobNumber=${encodeURIComponent(record.fields["Job Number"] || "")}`;
+            } catch (navError) {
+              console.error("Navigation error:", navError);
+              alert(`Job Details:\nNumber: ${jobData.jobNumber}\nName: ${jobData.jobName}\nStart: ${jobData.firstOnAir}\nEnd: ${jobData.contractEnd}`);
+            }
+          } catch (err) {
+            console.error("Error handling job click:", err);
+            alert("Could not open job details. Please try again later.");
+          }
+        };
+
+        // Append to container
+        eventsDiv.appendChild(block);
+      });
+
+      // Set container height based on lanes
+      const laneCount = lanes.length;
+      eventsDiv.style.height = `${Math.max(laneCount * 35 + 50, 200)}px`;
+
+      // Scroll to today or beginning
+      const container = document.getElementById('timeline-container');
+      container.scrollLeft = Math.max(0, todayOffset - (container.clientWidth / 2));
     }
 
-    // Jobs Gallery: Load and render job cards
-    async function loadJobsGallery() {
-      const filter = '{Client} = "Sunday Gravy"';
-      const data = await fetchData('fetchJobs', filter);
-      const container = document.getElementById('jobsGalleryContent');
-      container.innerHTML = "";
-      if (data && data.records) {
-        data.records.forEach(record => {
-          const fields = record.fields;
-          const card = document.createElement("div");
-          card.className = "job-card";
-          card.onclick = () => {
-            window.location.href = `job-details.html?jobNumber=${encodeURIComponent(fields["Job Number"] || "")}`;
-          };
-          card.innerHTML = `
-            <h3>${fields["Job Number"] || "No Job Number"}</h3>
-            <p>${fields["Job Name"] || "No Job Name"}</p>
-          `;
-          container.appendChild(card);
-        });
-      } else {
-        container.innerHTML = `<p class="error">Error loading jobs: ${data.error || 'Unknown error'}</p>`;
+    // Generic fetchData function
+    async function fetchData(endpoint) {
+      try {
+        const response = await fetch(`/.netlify/functions/${endpoint}`);
+        const data = await response.json();
+        return response.ok ? data : { error: data.error || 'Server error' };
+      } catch (err) {
+        return { error: err.message };
       }
     }
-
-    // Initialize page load for all views
-    window.onload = function() {
-      loadCalendar();
-      loadCampaignGallery();
-      loadJobsGallery();
-    };
 
     // Tab switching logic
     document.querySelectorAll('.tab').forEach(tab => {
@@ -258,6 +851,9 @@
         document.getElementById(this.getAttribute('data-target')).classList.add('active');
       });
     });
+
+    // Initialize on load
+    window.onload = loadCalendar;
   </script>
 </body>
 </html>

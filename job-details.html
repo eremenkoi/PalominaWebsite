@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Job Tracker Details</title>
+  <title>Job Details</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -53,14 +53,36 @@
       text-decoration: underline;
     }
     .error { color: red; }
+
+    /* Loading indicator */
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 200px;
+    }
+    .loading::after {
+      content: "";
+      width: 40px;
+      height: 40px;
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
   <button class="back-btn" onclick="window.history.back()">Back</button>
   <header>
     <h1>Job Tracker Details</h1>
+    <div id="jobInfo"></div>
   </header>
-  <div id="jobTrackerContainer">Loading job details...</div>
+  <div id="jobTrackerContainer" class="loading"></div>
 
   <script>
     // Helper: Get query parameter from the URL
@@ -69,23 +91,53 @@
       return params.get(param);
     }
 
+    // Format date
+    function formatDate(dateString) {
+      if (!dateString) return "";
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString; // Return original if invalid
+
+      // Format as DD/MM/YYYY
+      return date.toLocaleDateString('en-AU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+
     async function loadJobTracker() {
       const jobNumber = getQueryParam("jobNumber");
       if (!jobNumber) {
         document.getElementById("jobTrackerContainer").innerHTML = "<p class='error'>No job number provided.</p>";
+        document.getElementById("jobTrackerContainer").classList.remove("loading");
         return;
       }
 
+      const jobInfoContainer = document.getElementById("jobInfo");
+      jobInfoContainer.innerHTML = `<h2>Job Number: ${jobNumber}</h2>`;
+
       // Call the Netlify function that fetches Job Tracker records
       const url = `/.netlify/functions/fetchJobTracker?jobNumber=${encodeURIComponent(jobNumber)}`;
+
       try {
         const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+        const responseText = await response.text();
+
+        // Check if response is valid JSON
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          throw new Error(`Invalid JSON response: ${responseText}`);
         }
-        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}, Details: ${JSON.stringify(data)}`);
+        }
 
         const container = document.getElementById("jobTrackerContainer");
+        container.classList.remove("loading");
+
         if (!data.records || data.records.length === 0) {
           container.innerHTML = "<p>No job tracker records found for this job.</p>";
           return;
@@ -94,20 +146,39 @@
         // Build a horizontally scrollable table
         let html = '<div class="table-container"><table><thead><tr>';
 
-        // Use the field keys from the first record to build column headers
-        const headers = Object.keys(data.records[0].fields);
-        headers.forEach(header => {
+        // Get fields from the first record to build column headers
+        const record = data.records[0];
+        const fields = record.fields;
+        const headers = Object.keys(fields);
+
+        // Skip certain system fields or empty fields
+        const skipFields = ['_REPLACED', 'WILL BE REDUNDANT', 'Will be hidden', 'From Job No'];
+        const filteredHeaders = headers.filter(header => {
+          return !skipFields.some(skip => header.includes(skip));
+        });
+
+        // Add headers to table
+        filteredHeaders.forEach(header => {
           html += `<th>${header}</th>`;
         });
         html += "</tr></thead><tbody>";
 
-        // Build a row for each record
+        // Build rows
         data.records.forEach(record => {
           html += "<tr>";
-          headers.forEach(header => {
+          filteredHeaders.forEach(header => {
             let cellValue = record.fields[header];
 
-            // If it's an array (could be attachments or expanded linked records)
+            // Format dates
+            if (cellValue && (header.includes('Date') || header.includes('On Air') || header.includes('Ends'))) {
+              // Check if it's a date string
+              const dateObj = new Date(cellValue);
+              if (!isNaN(dateObj.getTime())) {
+                cellValue = formatDate(cellValue);
+              }
+            }
+
+            // Format special field types
             if (Array.isArray(cellValue)) {
               if (cellValue.length > 0 && cellValue[0].url) {
                 // It's an attachment array
@@ -121,15 +192,22 @@
                     return `<a href="${attachment.url}" class="attachment-link" target="_blank">${attachment.filename}</a>`;
                   }
                 }).join(" ");
-              } else if (cellValue.length > 0 && cellValue[0].fields) {
-                // It's an expanded linked record array
-                // Display the primary field, e.g. "Name"
-                cellValue = cellValue.map(item => item.fields["Name"] || item.id).join(", ");
+              } else if (cellValue.length > 0 && cellValue[0].id) {
+                // It's a linked record array
+                cellValue = cellValue.map(item => {
+                  if (item.fields && Object.keys(item.fields).length > 0) {
+                    // Use the first field's value as the display name
+                    const firstKey = Object.keys(item.fields)[0];
+                    return item.fields[firstKey];
+                  } else {
+                    return item.id;
+                  }
+                }).join(", ");
               } else {
-                // Just an array of strings or empty
+                // Just an array of strings
                 cellValue = cellValue.join(", ");
               }
-            } else if (!cellValue) {
+            } else if (cellValue === undefined || cellValue === null) {
               cellValue = "";
             }
 
@@ -141,7 +219,19 @@
         html += "</tbody></table></div>";
         container.innerHTML = html;
       } catch (error) {
-        document.getElementById("jobTrackerContainer").innerHTML = `<p class="error">Error loading job details: ${error}</p>`;
+        console.error("Error loading job details:", error);
+        document.getElementById("jobTrackerContainer").classList.remove("loading");
+        document.getElementById("jobTrackerContainer").innerHTML = `
+          <p class="error">Error loading job details: ${error.message}</p>
+          <div>
+            <h3>Troubleshooting</h3>
+            <p>There might be an issue with field names in your Airtable base. Please check:</p>
+            <ul>
+              <li>The job number "${jobNumber}" exists in your Job Tracker table</li>
+              <li>Your Airtable structure matches what the function is expecting</li>
+            </ul>
+          </div>
+        `;
       }
     }
 
