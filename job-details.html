@@ -21,15 +21,36 @@
       border: none;
       cursor: pointer;
     }
+    .view-buttons {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+      gap: 10px;
+    }
+    .view-btn {
+      padding: 10px 20px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .view-btn.active {
+      background: #0056b3;
+    }
+    .view-btn:hover {
+      background: #0069d9;
+    }
     /* Scrollable table container */
     .table-container {
       max-width: 100%;
       overflow-x: auto; /* Horizontal scroll if needed */
     }
     table {
-      width: auto;             /* Let columns size to content */
-      table-layout: auto;      /* Let columns size to content */
+      width: 100%;
       border-collapse: collapse;
+      margin-bottom: 20px;
     }
     table, th, td {
       border: 1px solid #ccc;
@@ -38,21 +59,104 @@
       padding: 8px;
       text-align: left;
       vertical-align: top;
-      white-space: nowrap;     /* Prevent wrapping for horizontal scroll */
     }
-    img.attachment-preview {
-      max-width: 100px;
-      height: auto;
-      border-radius: 4px;
-      margin-right: 8px;
+    th {
+      background-color: #f2f2f2;
+      cursor: pointer;
     }
-    a.attachment-link {
-      display: inline-block;
-      margin-right: 8px;
-      color: blue;
+    th.sort-asc::after {
+      content: " ▲";
+    }
+    th.sort-desc::after {
+      content: " ▼";
+    }
+    .talent-table th, .talent-table td {
+      white-space: nowrap;  /* Prevent wrapping for horizontal scroll */
+    }
+    .badge {
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: bold;
+      color: white;
+    }
+    .badge-freelance {
+      background-color: #17a2b8;
+    }
+    .badge-agency {
+      background-color: #6f42c1;
+    }
+    .badge-union {
+      background-color: #fd7e14;
+    }
+    .doc-link {
+      color: #007bff;
+      text-decoration: none;
+    }
+    .doc-link:hover {
       text-decoration: underline;
     }
-    .error { color: red; }
+    .group-header {
+      background-color: #eaeaea;
+      font-weight: bold;
+    }
+    .button-group {
+      margin-bottom: 15px;
+    }
+    .button-group button {
+      padding: 5px 10px;
+      margin-right: 5px;
+      border: 1px solid #ddd;
+      background: #f5f5f5;
+      cursor: pointer;
+    }
+    .button-group button.active {
+      background: #007bff;
+      color: white;
+      border-color: #0056b3;
+    }
+    .tab-container {
+      margin-top: 20px;
+    }
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 15px;
+    }
+    .tab {
+      padding: 8px 15px;
+      margin-right: 5px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-bottom: none;
+    }
+    .tab.active {
+      background: #fff;
+      border-color: #ccc;
+      border-radius: 4px 4px 0 0;
+      margin-bottom: -1px;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* View modes */
+    .view-mode {
+      display: none;
+    }
+    .view-mode.active {
+      display: block;
+    }
+
+    #error {
+      color: red;
+      margin: 20px 0;
+      font-weight: bold;
+      display: none;
+    }
 
     /* Loading indicator */
     .loading {
@@ -78,164 +182,891 @@
 </head>
 <body>
   <button class="back-btn" onclick="window.history.back()">Back</button>
+
   <header>
     <h1>Job Tracker Details</h1>
-    <div id="jobInfo"></div>
+    <div id="jobInfo">
+      <h2 id="jobName">Loading...</h2>
+      <p id="jobNumber">Job #: Loading...</p>
+      <div>
+        <span>First On Air: <span id="firstOnAir">-</span></span> |
+        <span>Contract Ends: <span id="contractEnds">-</span></span> |
+        <span>Contract Term: <span id="contractTerm">-</span></span>
+      </div>
+    </div>
   </header>
-  <div id="jobTrackerContainer" class="loading"></div>
 
-  <script>
-    // Helper: Get query parameter from the URL
-    function getQueryParam(param) {
-      const params = new URLSearchParams(window.location.search);
-      return params.get(param);
+  <!-- View Mode Buttons -->
+  <div class="view-buttons">
+    <button id="tableViewBtn" class="view-btn active">View Table</button>
+    <button id="detailsViewBtn" class="view-btn">View Details</button>
+  </div>
+
+  <!-- Loading state -->
+  <div id="loading" class="loading"></div>
+
+  <!-- Error message -->
+  <div id="error"></div>
+
+  <!-- Main content container -->
+  <div id="jobDetailsEl" style="display: none;">
+
+    <!-- Table View Mode -->
+    <div id="tableView" class="view-mode active">
+      <div class="button-group">
+        <button id="groupByNone" class="active">No Grouping</button>
+        <button id="groupByType">Group by Type</button>
+        <button id="groupByAgency">Group by Agency</button>
+      </div>
+
+      <div class="table-container">
+        <table class="talent-table">
+          <thead>
+            <tr>
+              <th data-sort="name">Name</th>
+              <th data-sort="agency">Agency</th>
+              <th data-sort="type">Type</th>
+              <th data-sort="role">Role</th>
+              <th data-sort="fee">Fee</th>
+              <th>Deal Memo</th>
+              <th>Contract</th>
+            </tr>
+          </thead>
+          <tbody id="talentTableBody">
+            <!-- Talent rows will be inserted here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Details View Mode -->
+    <div id="detailsView" class="view-mode">
+      <div class="tab-container">
+        <div class="tabs">
+          <div class="tab active" data-tab="summary">Summary</div>
+          <div class="tab" data-tab="details">Job Details</div>
+          <div class="tab" data-tab="documents">Documents</div>
+        </div>
+
+        <!-- Summary Tab -->
+        <div id="summaryTab" class="tab-content active">
+          <div class="summary-grid">
+            <div class="summary-box">
+              <h3>Total Talent</h3>
+              <div id="totalTalent" class="summary-value">-</div>
+            </div>
+            <div class="summary-box">
+              <h3>Contract Value</h3>
+              <div id="totalContractValue" class="summary-value">-</div>
+            </div>
+            <div class="summary-box">
+              <h3>Talent Types</h3>
+              <div id="talentTypes" class="summary-value">-</div>
+            </div>
+            <div class="summary-box">
+              <h3>Status</h3>
+              <div id="jobStatus" class="summary-value">-</div>
+              <div id="daysRemaining" class="summary-subtext">-</div>
+            </div>
+          </div>
+
+          <h3>Talent Overview</h3>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Type</th>
+                  <th>Fee</th>
+                </tr>
+              </thead>
+              <tbody id="talentSummaryBody">
+                <!-- Summary talent rows will be inserted here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Details Tab -->
+        <div id="detailsTab" class="tab-content">
+          <table>
+            <tbody id="jobDetailsContent">
+              <!-- Job details will be inserted here -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Documents Tab -->
+        <div id="documentsTab" class="tab-content">
+          <div id="documentsContent">
+            <!-- Documents will be inserted here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // Get job number from URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const jobNumber = urlParams.get('jobNumber');
+  let jobData = null;
+  let talentData = [];
+
+  // DOM elements
+  const loadingEl = document.getElementById('loading');
+  const errorEl = document.getElementById('error');
+  const jobDetailsEl = document.getElementById('jobDetailsEl');
+  const tableViewBtn = document.getElementById('tableViewBtn');
+  const detailsViewBtn = document.getElementById('detailsViewBtn');
+  const tableView = document.getElementById('tableView');
+  const detailsView = document.getElementById('detailsView');
+
+  // Check if we have job data in sessionStorage (from timeline click)
+  let sessionJobData = null;
+  try {
+    const storedData = sessionStorage.getItem('currentJobData');
+    if (storedData) {
+      sessionJobData = JSON.parse(storedData);
+    }
+  } catch (e) {
+    console.error("Error reading session storage:", e);
+  }
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log("Page loaded");
+
+    // View mode switching
+    tableViewBtn.addEventListener('click', function() {
+      tableViewBtn.classList.add('active');
+      detailsViewBtn.classList.remove('active');
+      tableView.classList.add('active');
+      detailsView.classList.remove('active');
+    });
+
+    detailsViewBtn.addEventListener('click', function() {
+      tableViewBtn.classList.remove('active');
+      detailsViewBtn.classList.add('active');
+      tableView.classList.remove('active');
+      detailsView.classList.add('active');
+    });
+
+    // Check if we have a job number
+    if (!jobNumber) {
+      showError("No job number provided. Please select a job from the dashboard.");
+      return;
     }
 
-    // Format date
-    function formatDate(dateString) {
-      if (!dateString) return "";
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString; // Return original if invalid
+    // Load job data
+    loadJobDetails();
 
-      // Format as DD/MM/YYYY
-      return date.toLocaleDateString('en-AU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', function() {
+        // Remove active class from all tabs and content
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        // Add active class to clicked tab and corresponding content
+        this.classList.add('active');
+        document.getElementById(this.getAttribute('data-tab') + 'Tab').classList.add('active');
+      });
+    });
+
+    // Table sorting
+    document.querySelectorAll('th[data-sort]').forEach(header => {
+      header.addEventListener('click', function() {
+        const sortField = this.getAttribute('data-sort');
+        sortTable(sortField);
+      });
+    });
+
+    // Grouping buttons
+    document.getElementById('groupByNone').addEventListener('click', function() {
+      document.querySelectorAll('.button-group button').forEach(btn => btn.classList.remove('active'));
+      this.classList.add('active');
+      renderTalentTable(talentData);
+    });
+
+    document.getElementById('groupByType').addEventListener('click', function() {
+      document.querySelectorAll('.button-group button').forEach(btn => btn.classList.remove('active'));
+      this.classList.add('active');
+      renderTalentTable(talentData, 'type');
+    });
+
+    document.getElementById('groupByAgency').addEventListener('click', function() {
+      document.querySelectorAll('.button-group button').forEach(btn => btn.classList.remove('active'));
+      this.classList.add('active');
+      renderTalentTable(talentData, 'agency');
+    });
+  });
+
+  // Load job details from API
+  async function loadJobDetails() {
+    try {
+      console.log("Loading job details for job number:", jobNumber);
+
+      // First, use already fetched data from session if available
+      if (sessionJobData && sessionJobData.jobNumber === jobNumber) {
+        // Use basic info from session storage
+        updateJobHeader(sessionJobData);
+      }
+
+      // API call to get job details
+      const response = await fetch(`/.netlify/functions/fetchJobTracker?jobNumber=${encodeURIComponent(jobNumber)}`);
+      console.log("API call made to:", `/.netlify/functions/fetchJobTracker?jobNumber=${encodeURIComponent(jobNumber)}`);
+
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("API response:", data);
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Store job data
+      jobData = data.job || {};
+      talentData = data.talent || [];
+
+      // Update the UI
+      updateJobHeader(jobData);
+      updateJobDashboard(jobData, talentData);
+
+      // Render talent table (all fields view)
+      renderTalentTable(talentData);
+
+      // Render details view
+      renderTalentSummary(talentData);
+      renderJobDetails(jobData);
+      renderDocuments(jobData, talentData);
+
+      // Hide loading, show job details
+      loadingEl.style.display = 'none';
+      jobDetailsEl.style.display = 'block';
+
+    } catch (error) {
+      console.error("Error loading job details:", error);
+
+      // If we have session data, show partial information
+      if (sessionJobData && sessionJobData.jobNumber === jobNumber) {
+        // Create dummy data based on session storage
+        jobData = {
+          ...sessionJobData,
+          contractTerm: extractTermFromDates(sessionJobData.firstOnAir, sessionJobData.contractEnd)
+        };
+
+        // Update the header at minimum
+        updateJobHeader(jobData);
+
+        // Show limited view with warning
+        loadingEl.style.display = 'none';
+        jobDetailsEl.style.display = 'block';
+
+        showError(`Could not load complete job details: ${error.message}. Showing limited information.`);
+      } else {
+        // Show error if no session data available
+        showError(`Error loading job details: ${error.message}`);
+      }
+    }
+  }
+
+  // Extract contract term from dates
+  function extractTermFromDates(startDate, endDate) {
+    try {
+      if (!startDate || !endDate) return "N/A";
+
+      // Parse dates if they're strings
+      const start = typeof startDate === 'string' ? parseDate(startDate) : startDate;
+      const end = typeof endDate === 'string' ? parseDate(endDate) : endDate;
+
+      if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return "N/A";
+      }
+
+      // Calculate difference in months
+      const monthsDiff = (end.getFullYear() - start.getFullYear()) * 12 +
+                         (end.getMonth() - start.getMonth());
+
+      return `${monthsDiff} Months`;
+    } catch (e) {
+      console.error("Error calculating contract term:", e);
+      return "N/A";
+    }
+  }
+
+  // Update job header information
+  function updateJobHeader(job) {
+    if (!job) return;
+
+    document.getElementById('jobName').textContent = job.jobName || 'Unnamed Job';
+    document.getElementById('jobNumber').textContent = `Job #: ${job.jobNumber || 'Unknown'}`;
+    document.getElementById('firstOnAir').textContent = job.firstOnAir || job["First On Air"] || 'N/A';
+    document.getElementById('contractEnds').textContent = job.contractEnd || job["Contract Ends (Calculated) Date For Sorting"] || 'N/A';
+    document.getElementById('contractTerm').textContent = Array.isArray(job.contractTerm) ? job.contractTerm[0] : (job.contractTerm || job["Contract Term"] || 'N/A');
+  }
+
+  // Update job dashboard summary
+  function updateJobDashboard(job, talent) {
+    // Ensure talent is an array
+    const talentArray = Array.isArray(talent) ? talent : [];
+
+    // Total talent count
+    document.getElementById('totalTalent').textContent = talentArray.length;
+
+    // Calculate total contract value
+    let totalValue = 0;
+    talentArray.forEach(person => {
+      const fee = parseFloat(person.contractFee || person["Contract Fee OLD"] || '0');
+      if (!isNaN(fee)) {
+        totalValue += fee;
+      }
+    });
+    document.getElementById('totalContractValue').textContent = formatCurrency(totalValue);
+
+    // Count talent types
+    const typeCount = {};
+    talentArray.forEach(person => {
+      const type = person.type || person.Type || 'Unknown';
+      typeCount[type] = (typeCount[type] || 0) + 1;
+    });
+
+    let typeText = '';
+    if (Object.keys(typeCount).length > 0) {
+      const mainType = Object.keys(typeCount).reduce((a, b) =>
+        typeCount[a] > typeCount[b] ? a : b);
+      typeText = `${mainType} (${typeCount[mainType]})`;
+    } else {
+      typeText = 'N/A';
+    }
+    document.getElementById('talentTypes').textContent = typeText;
+
+    // Calculate job status
+    const today = new Date();
+    const endDate = parseDate(job.contractEnd || job["Contract Ends (Calculated) Date For Sorting"]);
+    const startDate = parseDate(job.firstOnAir || job["First On Air"]);
+
+    let status, daysText;
+    if (!startDate || !endDate) {
+      status = 'Unknown';
+      daysText = '';
+    } else if (today < startDate) {
+      status = 'Upcoming';
+      const daysToStart = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+      daysText = `Starts in ${daysToStart} days`;
+    } else if (today > endDate) {
+      status = 'Expired';
+      const daysAgo = Math.ceil((today - endDate) / (1000 * 60 * 60 * 24));
+      daysText = `Expired ${daysAgo} days ago`;
+    } else {
+      status = 'Active';
+      const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+      daysText = `${daysLeft} days remaining`;
+    }
+
+    document.getElementById('jobStatus').textContent = status;
+    document.getElementById('daysRemaining').textContent = daysText;
+  }
+
+  // Render talent summary table
+  function renderTalentSummary(talent) {
+    const tableBody = document.getElementById('talentSummaryBody');
+    if (!tableBody) return;
+
+    tableBody.innerHTML = '';
+
+    // Make sure we have an array of talent records
+    if (!talent || !Array.isArray(talent) || talent.length === 0) {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td colspan="4">No talent associated with this job.</td>`;
+      tableBody.appendChild(row);
+      return;
+    }
+
+    // Sort by name
+    const talentList = [...talent].sort((a, b) =>
+      (a.name || a.Person || '').localeCompare(b.name || b.Person || ''));
+
+    // Add rows
+    talentList.forEach(person => {
+      const row = document.createElement('tr');
+
+      // Get person info
+      const name = person.name || person.Person || 'Unknown';
+      const role = person.role || person.Role || 'N/A';
+      const type = person.type || person.Type || 'Unknown';
+
+      // Format fee
+      let formattedFee = 'N/A';
+      const fee = person.contractFee || person["Contract Fee OLD"];
+      if (fee !== null && fee !== undefined) {
+        const feeValue = parseFloat(fee);
+        if (!isNaN(feeValue)) {
+          formattedFee = formatCurrency(feeValue);
+        } else {
+          formattedFee = fee.toString();
+        }
+      }
+
+      row.innerHTML = `
+        <td>${name}</td>
+        <td>${role}</td>
+        <td>${type}</td>
+        <td>${formattedFee}</td>
+      `;
+
+      tableBody.appendChild(row);
+    });
+  }
+
+  // Render talent table (all fields)
+  function renderTalentTable(talent, groupBy = null) {
+    const tableBody = document.getElementById('talentTableBody');
+    if (!tableBody) return;
+
+    tableBody.innerHTML = '';
+
+    // Make sure we have an array of talent records
+    if (!talent || !Array.isArray(talent) || talent.length === 0) {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td colspan="7">No talent associated with this job.</td>`;
+      tableBody.appendChild(row);
+      return;
+    }
+
+    // Clone the data before sorting/grouping
+    const talentList = [...talent];
+
+    // Sort by name by default
+    talentList.sort((a, b) => (a.name || a.Person || '').localeCompare(b.name || b.Person || ''));
+
+    if (groupBy) {
+      // Group the data
+      const groups = {};
+      talentList.forEach(person => {
+        // Handle different field names
+        let groupValue = 'Unknown';
+        if (groupBy === 'type') {
+          groupValue = person.type || person.Type || 'Unknown';
+        } else if (groupBy === 'agency') {
+          groupValue = person.agency || person["Talent Agency"] || 'Unknown';
+        } else {
+          groupValue = person[groupBy] || 'Unknown';
+        }
+
+        if (!groups[groupValue]) {
+          groups[groupValue] = [];
+        }
+        groups[groupValue].push(person);
+      });
+
+      // Render each group
+      Object.keys(groups).sort().forEach(groupValue => {
+        // Add group header
+        const groupRow = document.createElement('tr');
+        groupRow.className = 'group-header';
+        groupRow.innerHTML = `<td colspan="7">${groupValue} (${groups[groupValue].length})</td>`;
+        tableBody.appendChild(groupRow);
+
+        // Add group items
+        groups[groupValue].forEach(person => {
+          const row = createTalentRow(person);
+          if (row) {
+            tableBody.appendChild(row);
+          }
+        });
+      });
+    } else {
+      // Render without grouping
+      talentList.forEach(person => {
+        const row = createTalentRow(person);
+        if (row) {
+          tableBody.appendChild(row);
+        }
       });
     }
+  }
 
-    async function loadJobTracker() {
-      const jobNumber = getQueryParam("jobNumber");
-      if (!jobNumber) {
-        document.getElementById("jobTrackerContainer").innerHTML = "<p class='error'>No job number provided.</p>";
-        document.getElementById("jobTrackerContainer").classList.remove("loading");
+  // Create a talent table row
+  function createTalentRow(person) {
+    if (!person) return null;
+
+    const row = document.createElement('tr');
+
+    // Get person's name
+    const name = person.name || person.Person || 'Unknown';
+
+    // Get agency name
+    const agency = person.agency || person["Talent Agency"] || 'N/A';
+
+    // Get type
+    const type = person.type || person.Type || 'Unknown';
+
+    // Get role
+    const role = person.role || person.Role || 'N/A';
+
+    // Get type badge class
+    let typeBadgeClass = 'badge-freelance';
+    if ((type || '').toLowerCase().includes('agency')) {
+      typeBadgeClass = 'badge-agency';
+    } else if ((type || '').toLowerCase().includes('union')) {
+      typeBadgeClass = 'badge-union';
+    }
+
+    // Format fee
+    let formattedFee = 'N/A';
+    const fee = person.contractFee || person["Contract Fee OLD"];
+    if (fee !== null && fee !== undefined) {
+      const feeValue = parseFloat(fee);
+      if (!isNaN(feeValue)) {
+        formattedFee = formatCurrency(feeValue);
+      } else {
+        formattedFee = fee.toString();
+      }
+    }
+
+    // Get document URLs
+    const dealMemo = person.dealMemo || (person["Deal Memo"] && person["Deal Memo"][0]?.url);
+    const contract = person.contract || (person["Contract / DOR"] && person["Contract / DOR"][0]?.url);
+
+    row.innerHTML = `
+      <td>${name}</td>
+      <td>${agency}</td>
+      <td><span class="badge ${typeBadgeClass}">${type}</span></td>
+      <td>${role}</td>
+      <td>${formattedFee}</td>
+      <td>${dealMemo ? `<a href="${dealMemo}" class="doc-link" target="_blank">Deal Memo</a>` : 'N/A'}</td>
+      <td>${contract ? `<a href="${contract}" class="doc-link" target="_blank">Contract</a>` : 'N/A'}</td>
+    `;
+
+    return row;
+  }
+
+  // Render job details
+  function renderJobDetails(job) {
+    const detailsContent = document.getElementById('jobDetailsContent');
+    if (!detailsContent) return;
+
+    detailsContent.innerHTML = '';
+
+    if (!job) {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td colspan="2">No job details available.</td>`;
+      detailsContent.appendChild(row);
+      return;
+    }
+
+    // Define the fields to show
+    const fieldsToShow = [
+      { label: 'Job Number', field: 'jobNumber' },
+      { label: 'Job Name', field: 'jobName' },
+      { label: 'Client', field: 'client', altField: 'Advertiser' },
+      { label: 'Job Description', field: 'jobDescription', altField: 'Job Description - Product Details' },
+      { label: 'Territory', field: 'territory', altField: 'Territory' },
+      { label: 'First On Air', field: 'firstOnAir', altField: 'First On Air' },
+      { label: 'Contract Ends', field: 'contractEnd', altField: 'Contract Ends (Calculated) Date For Sorting' },
+      { label: 'Contract Term', field: 'contractTerm', altField: 'Contract Term' },
+      { label: 'Usage Rights', field: 'usageRights', altField: 'CONTRACTED RELEASE FROM JOB TRACKER REF FIELD' },
+      { label: 'Contracted Executions', field: 'contractedExecutions', altField: 'CONTRACTED EXECUTIONS FROM JOB TRACKER REF FIELD copy' }
+    ];
+
+    let hasFields = false;
+
+    fieldsToShow.forEach(field => {
+      // Check primary field name
+      let value = job[field.field];
+
+      // If not found, check alternate field name
+      if ((value === undefined || value === null) && field.altField) {
+        value = job[field.altField];
+      }
+
+      // Skip if still not found
+      if (value === undefined || value === null) {
         return;
       }
 
-      const jobInfoContainer = document.getElementById("jobInfo");
-      jobInfoContainer.innerHTML = `<h2>Job Number: ${jobNumber}</h2>`;
+      hasFields = true;
+      const row = document.createElement('tr');
 
-      // Call the Netlify function that fetches Job Tracker records
-      const url = `/.netlify/functions/fetchJobTracker?jobNumber=${encodeURIComponent(jobNumber)}`;
-
-      try {
-        const response = await fetch(url);
-        const responseText = await response.text();
-
-        // Check if response is valid JSON
-        let data;
-        try {
-          data = JSON.parse(responseText);
-        } catch (e) {
-          throw new Error(`Invalid JSON response: ${responseText}`);
-        }
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}, Details: ${JSON.stringify(data)}`);
-        }
-
-        const container = document.getElementById("jobTrackerContainer");
-        container.classList.remove("loading");
-
-        if (!data.records || data.records.length === 0) {
-          container.innerHTML = "<p>No job tracker records found for this job.</p>";
-          return;
-        }
-
-        // Build a horizontally scrollable table
-        let html = '<div class="table-container"><table><thead><tr>';
-
-        // Get fields from the first record to build column headers
-        const record = data.records[0];
-        const fields = record.fields;
-        const headers = Object.keys(fields);
-
-        // Skip certain system fields or empty fields
-        const skipFields = ['_REPLACED', 'WILL BE REDUNDANT', 'Will be hidden', 'From Job No'];
-        const filteredHeaders = headers.filter(header => {
-          return !skipFields.some(skip => header.includes(skip));
-        });
-
-        // Add headers to table
-        filteredHeaders.forEach(header => {
-          html += `<th>${header}</th>`;
-        });
-        html += "</tr></thead><tbody>";
-
-        // Build rows
-        data.records.forEach(record => {
-          html += "<tr>";
-          filteredHeaders.forEach(header => {
-            let cellValue = record.fields[header];
-
-            // Format dates
-            if (cellValue && (header.includes('Date') || header.includes('On Air') || header.includes('Ends'))) {
-              // Check if it's a date string
-              const dateObj = new Date(cellValue);
-              if (!isNaN(dateObj.getTime())) {
-                cellValue = formatDate(cellValue);
-              }
-            }
-
-            // Format special field types
-            if (Array.isArray(cellValue)) {
-              if (cellValue.length > 0 && cellValue[0].url) {
-                // It's an attachment array
-                cellValue = cellValue.map(attachment => {
-                  const fileType = attachment.type || "";
-                  // If it's an image, display a preview
-                  if (fileType.startsWith("image/")) {
-                    return `<img src="${attachment.url}" class="attachment-preview" alt="Attachment" />`;
-                  } else {
-                    // Otherwise, clickable link
-                    return `<a href="${attachment.url}" class="attachment-link" target="_blank">${attachment.filename}</a>`;
-                  }
-                }).join(" ");
-              } else if (cellValue.length > 0 && cellValue[0].id) {
-                // It's a linked record array
-                cellValue = cellValue.map(item => {
-                  if (item.fields && Object.keys(item.fields).length > 0) {
-                    // Use the first field's value as the display name
-                    const firstKey = Object.keys(item.fields)[0];
-                    return item.fields[firstKey];
-                  } else {
-                    return item.id;
-                  }
-                }).join(", ");
-              } else {
-                // Just an array of strings
-                cellValue = cellValue.join(", ");
-              }
-            } else if (cellValue === undefined || cellValue === null) {
-              cellValue = "";
-            }
-
-            html += `<td>${cellValue}</td>`;
-          });
-          html += "</tr>";
-        });
-
-        html += "</tbody></table></div>";
-        container.innerHTML = html;
-      } catch (error) {
-        console.error("Error loading job details:", error);
-        document.getElementById("jobTrackerContainer").classList.remove("loading");
-        document.getElementById("jobTrackerContainer").innerHTML = `
-          <p class="error">Error loading job details: ${error.message}</p>
-          <div>
-            <h3>Troubleshooting</h3>
-            <p>There might be an issue with field names in your Airtable base. Please check:</p>
-            <ul>
-              <li>The job number "${jobNumber}" exists in your Job Tracker table</li>
-              <li>Your Airtable structure matches what the function is expecting</li>
-            </ul>
-          </div>
-        `;
+      // Handle array values
+      if (Array.isArray(value)) {
+        value = value.join(', ');
       }
+
+      row.innerHTML = `
+        <th style="width: 30%;">${field.label}</th>
+        <td>${value}</td>
+      `;
+      detailsContent.appendChild(row);
+    });
+
+    // If no fields were added
+    if (!hasFields) {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td colspan="2">No additional details available.</td>`;
+      detailsContent.appendChild(row);
+    }
+  }
+
+  // Render documents
+  function renderDocuments(job, talent) {
+    const docsContent = document.getElementById('documentsContent');
+    if (!docsContent) return;
+
+    docsContent.innerHTML = '';
+
+    let hasDocuments = false;
+
+    // Ensure we have data
+    if (!job) {
+      docsContent.innerHTML = `<p>No job data available.</p>`;
+      return;
     }
 
-    window.onload = loadJobTracker;
-  </script>
+    // Ensure talent is an array
+    const talentArray = Array.isArray(talent) ? talent : [];
+
+    // Job documents
+    if (job.documents && job.documents.length > 0) {
+      hasDocuments = true;
+      const jobDocsSection = document.createElement('div');
+      jobDocsSection.innerHTML = `<h3>Job Documents</h3>`;
+
+      const docsList = document.createElement('ul');
+      job.documents.forEach(doc => {
+        const item = document.createElement('li');
+        item.innerHTML = `<a href="${doc.url}" class="doc-link" target="_blank">${doc.name || 'Document'}</a>`;
+        docsList.appendChild(item);
+      });
+
+      jobDocsSection.appendChild(docsList);
+      docsContent.appendChild(jobDocsSection);
+    } else if (job["Job Summary"] && Array.isArray(job["Job Summary"])) {
+      // Alternative field name check
+      hasDocuments = true;
+      const jobDocsSection = document.createElement('div');
+      jobDocsSection.innerHTML = `<h3>Job Documents</h3>`;
+
+      const docsList = document.createElement('ul');
+      job["Job Summary"].forEach(doc => {
+        const item = document.createElement('li');
+        item.innerHTML = `<a href="${doc.url}" class="doc-link" target="_blank">${doc.filename || 'Document'}</a>`;
+        docsList.appendChild(item);
+      });
+
+      jobDocsSection.appendChild(docsList);
+      docsContent.appendChild(jobDocsSection);
+    }
+
+    // Talent documents
+    const talentWithDocs = talentArray.filter(p => p && (
+      p.contract ||
+      p["Contract / DOR"] ||
+      p.dealMemo ||
+      p["Deal Memo"]
+    ));
+
+    if (talentWithDocs.length > 0) {
+      hasDocuments = true;
+      const talentDocsSection = document.createElement('div');
+      talentDocsSection.innerHTML = `<h3>Talent Documents</h3>`;
+
+      const docsList = document.createElement('ul');
+      talentWithDocs.forEach(person => {
+        // Get person name
+        const name = person.name || person.Person || 'Unnamed Talent';
+
+        // Check Contract / DOR
+        const contract = person.contract || (person["Contract / DOR"] && person["Contract / DOR"][0]?.url);
+        if (contract) {
+          const item = document.createElement('li');
+          item.innerHTML = `<a href="${contract}" class="doc-link" target="_blank">${name} - Contract</a>`;
+          docsList.appendChild(item);
+        }
+
+        // Check Deal Memo
+        const dealMemo = person.dealMemo || (person["Deal Memo"] && person["Deal Memo"][0]?.url);
+        if (dealMemo) {
+          const item = document.createElement('li');
+          item.innerHTML = `<a href="${dealMemo}" class="doc-link" target="_blank">${name} - Deal Memo</a>`;
+          docsList.appendChild(item);
+        }
+      });
+
+      talentDocsSection.appendChild(docsList);
+      docsContent.appendChild(talentDocsSection);
+    }
+
+    // No documents message
+    if (!hasDocuments) {
+      docsContent.innerHTML = `<p>No documents available for this job.</p>`;
+    }
+  }
+
+  // Sort table by column
+  function sortTable(field) {
+    // Get the header element
+    const header = document.querySelector(`th[data-sort="${field}"]`);
+    if (!header) return;
+
+    // Determine sort direction
+    const currentDir = header.classList.contains('sort-asc') ? 'desc' :
+                      (header.classList.contains('sort-desc') ? 'none' : 'asc');
+
+    // Remove sorting classes from all headers
+    document.querySelectorAll('th[data-sort]').forEach(el => {
+      el.classList.remove('sort-asc', 'sort-desc');
+    });
+
+    // Ensure talentData is an array
+    if (!Array.isArray(talentData)) {
+      console.error("talentData is not an array during sort");
+      return;
+    }
+
+    // Sort the data - mapping sort fields to Airtable field names
+    if (currentDir === 'asc') {
+      header.classList.add('sort-asc');
+      talentData.sort((a, b) => {
+        // Map field names
+        let aValue, bValue;
+
+        // Handle different field mappings
+        if (field === 'name') {
+          aValue = a.name || a.Person || '';
+          bValue = b.name || b.Person || '';
+        } else if (field === 'agency') {
+          aValue = a.agency || a["Talent Agency"] || '';
+          bValue = b.agency || b["Talent Agency"] || '';
+        } else if (field === 'type') {
+          aValue = a.type || a.Type || '';
+          bValue = b.type || b.Type || '';
+        } else if (field === 'role') {
+          aValue = a.role || a.Role || '';
+          bValue = b.role || b.Role || '';
+        } else if (field === 'fee') {
+          // Handle numeric sorting for fees
+          aValue = parseFloat(a.contractFee || a["Contract Fee OLD"] || 0);
+          bValue = parseFloat(b.contractFee || b["Contract Fee OLD"] || 0);
+          return aValue - bValue;
+        } else {
+          aValue = a[field] || '';
+          bValue = b[field] || '';
+        }
+
+        // String comparison for non-fee fields
+        if (field !== 'fee') {
+          return String(aValue).localeCompare(String(bValue));
+        }
+        return 0;
+      });
+    } else if (currentDir === 'desc') {
+      header.classList.add('sort-desc');
+      talentData.sort((a, b) => {
+        // Map field names
+        let aValue, bValue;
+
+        // Handle different field mappings
+        if (field === 'name') {
+          aValue = a.name || a.Person || '';
+          bValue = b.name || b.Person || '';
+        } else if (field === 'agency') {
+          aValue = a.agency || a["Talent Agency"] || '';
+          bValue = b.agency || b["Talent Agency"] || '';
+        } else if (field === 'type') {
+          aValue = a.type || a.Type || '';
+          bValue = b.type || b.Type || '';
+        } else if (field === 'role') {
+          aValue = a.role || a.Role || '';
+          bValue = b.role || b.Role || '';
+        } else if (field === 'fee') {
+          // Handle numeric sorting for fees
+          aValue = parseFloat(a.contractFee || a["Contract Fee OLD"] || 0);
+          bValue = parseFloat(b.contractFee || b["Contract Fee OLD"] || 0);
+          return bValue - aValue;
+        } else {
+          aValue = a[field] || '';
+          bValue = b[field] || '';
+        }
+
+        // String comparison for non-fee fields
+        if (field !== 'fee') {
+          return String(bValue).localeCompare(String(aValue));
+        }
+        return 0;
+      });
+    } else {
+      // Default sort by name if sorting is removed
+      talentData.sort((a, b) => {
+        const aName = a.name || a.Person || '';
+        const bName = b.name || b.Person || '';
+        return String(aName).localeCompare(String(bName));
+      });
+    }
+
+    // Get current grouping method
+    let groupBy = null;
+    if (document.getElementById('groupByType').classList.contains('active')) {
+      groupBy = 'type';
+    } else if (document.getElementById('groupByAgency').classList.contains('active')) {
+      groupBy = 'agency';
+    }
+
+    // Re-render the table
+    renderTalentTable(talentData, groupBy);
+  }
+
+  // Helper function to format currency
+  function formatCurrency(value) {
+    if (value === undefined || value === null) return '';
+
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return '';
+
+    return '$' + numValue.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  // Helper function to parse dates
+  function parseDate(dateStr) {
+    if (!dateStr) return null;
+
+    try {
+      // Australian format DD/MM/YYYY
+      if (typeof dateStr === 'string' && dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          // Assuming DD/MM/YYYY format
+          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+      }
+
+      // ISO format YYYY-MM-DD
+      if (typeof dateStr === 'string' && dateStr.includes('-')) {
+        return new Date(dateStr);
+      }
+
+      // Fallback
+      return new Date(dateStr);
+    } catch (e) {
+      console.error("Date parsing error:", e);
+      return null;
+    }
+  }
+
+  // Show error message
+  function showError(message) {
+    loadingEl.style.display = 'none';
+    errorEl.style.display = 'block';
+    errorEl.textContent = message;
+  }
+</script>
 </body>
 </html>

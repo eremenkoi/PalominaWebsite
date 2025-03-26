@@ -65,7 +65,7 @@ exports.handler = async function(event, context) {
 // Get job details from Airtable
 async function getJobDetails(jobNumber) {
   return new Promise((resolve, reject) => {
-    base('Jobs').select({
+    base('tbl9O07R90s6qdgtK').select({
       maxRecords: 1,
       filterByFormula: `{Job Number} = "${jobNumber}"`
     }).firstPage((err, records) => {
@@ -119,7 +119,7 @@ function getClientName(fields) {
 // Get talent associated with this job
 async function getTalentForJob(jobNumber) {
   return new Promise((resolve, reject) => {
-    base('Talent').select({
+    base('tblavZRcB3OTb37vq').select({
       filterByFormula: `{Job No.} = "${jobNumber}"`
     }).all((err, records) => {
       if (err) {
