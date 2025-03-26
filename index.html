@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>PaloPay Client Portal Dashboard</title>
+  <title>Palopay Client Portal Dashboard</title>
   <style>
     /* Global Styles */
     body {
@@ -67,10 +67,37 @@
       text-align: left;
       white-space: nowrap;
     }
+    th {
+      position: relative;
+      cursor: pointer;
+      background-color: #f2f2f2;
+    }
+    th.sort-asc::after {
+      content: " ▲";
+      position: absolute;
+      right: 8px;
+    }
+    th.sort-desc::after {
+      content: " ▼";
+      position: absolute;
+      right: 8px;
+    }
     /* Expiring date colors for table */
     tr.expires-soon td {
       background-color: #ffebee; /* Light red */
       color: #c62828; /* Darker red text */
+    }
+    tr.expired td {
+      background-color: #f5f5f5; /* Light gray */
+      color: #616161; /* Dark gray text */
+    }
+    tr.active td {
+      background-color: #e3f2fd; /* Light blue */
+      color: #0d47a1; /* Dark blue text */
+    }
+    tr.upcoming td {
+      background-color: #e8f5e9; /* Light green */
+      color: #2e7d32; /* Dark green text */
     }
     /* Gallery Grid */
     .gallery-grid {
@@ -197,10 +224,22 @@
       min-width: 100px;
       font-size: 12px;
       cursor: pointer;
-      overflow: hidden;
+      overflow: visible; /* Allow content to overflow for positioning */
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       transition: all 0.2s ease;
       z-index: 3;
+    }
+
+    /* Event content container for positioning near Today line */
+    .event-content {
+      display: none; /* Hide by default - we'll show the content inside the bar instead */
+    }
+
+    /* Timeline event hover behavior */
+    .timeline-event:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+      z-index: 10;
     }
 
     .timeline-event:hover {
@@ -214,12 +253,13 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      font-size: 11px;
     }
 
     .timeline-event .event-dates {
-      font-size: 10px;
+      font-size: 9px;
       opacity: 0.9;
-      margin-top: 3px;
+      margin-top: 2px;
     }
 
     /* Different status styles */
@@ -337,7 +377,7 @@
 
   <!-- Calendar View -->
   <div id="calendarView" class="view active">
-    <h2>Contract Timeline</h2>
+    <h2>Contract Expiration Calendar</h2>
 
     <!-- Debug Section -->
     <div id="debugOutput" class="field-debug"></div>
@@ -421,6 +461,8 @@
     // Global settings for timeline
     let pxPerDay = 20; // Default zoom level
     let currentRecords = []; // Store records for filtering/zooming without re-fetching
+    let currentSortField = 'firstOnAir'; // Default sort field
+    let currentSortDirection = 'asc'; // Default sort direction
 
     // Add event listeners for timeline controls
     document.getElementById('zoomIn').addEventListener('click', function() {
@@ -458,6 +500,42 @@
     document.getElementById('showUpcoming').addEventListener('change', function() {
       renderTimeline(currentRecords);
     });
+
+    // Calculate contract term in months
+    function calculateContractTerm(startDate, endDate) {
+      if (!startDate || !endDate) return "N/A";
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return "N/A";
+
+      // Calculate months difference
+      const months = (end.getFullYear() - start.getFullYear()) * 12 +
+                     (end.getMonth() - start.getMonth());
+
+      // Calculate days for partial months
+      const startDay = start.getDate();
+      const endDay = end.getDate();
+      let partialMonth = 0;
+
+      if (endDay >= startDay) {
+        partialMonth = (endDay - startDay) / 30; // Approximate
+      } else {
+        partialMonth = ((endDay + 30) - startDay) / 30 - 1; // Approximate
+      }
+
+      const totalMonths = months + partialMonth;
+
+      // Format the result
+      if (totalMonths < 1) {
+        const days = Math.round((end - start) / (1000 * 60 * 60 * 24));
+        return `${days} day${days !== 1 ? 's' : ''}`;
+      } else {
+        const roundedMonths = Math.round(totalMonths * 10) / 10;
+        return `${roundedMonths} month${roundedMonths !== 1 ? 's' : ''}`;
+      }
+    }
 
     // Improved date parser that handles multiple formats
     function parseDate(dateStr) {
@@ -526,62 +604,138 @@
       });
     }
 
+    // Sort table data by field
+    function sortTable(field) {
+      if (currentSortField === field) {
+        // Toggle direction if same field
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        // New field, default to ascending
+        currentSortField = field;
+        currentSortDirection = 'asc';
+      }
+
+      // Update UI
+      loadCalendar();
+    }
+
     // Load Airtable records and render table and timeline
     async function loadCalendar() {
       const container = document.getElementById('calendarTableContainer');
       container.innerHTML = `<p>Loading contracts...</p>`;
 
       try {
-        const data = await fetchData('fetchJobs');
+        // Use already fetched data if available
+        if (currentRecords.length === 0) {
+          const data = await fetchData('fetchJobs');
 
-        if (data.error || !data.records) {
-          container.innerHTML = `<p class="error">Error loading contracts: ${data.error || 'Unknown error'}</p>`;
-          return;
+          if (data.error || !data.records) {
+            container.innerHTML = `<p class="error">Error loading contracts: ${data.error || 'Unknown error'}</p>`;
+            return;
+          }
+
+          // Show raw data in debug panel
+          if (document.getElementById('debugOutput').style.display !== 'none') {
+            document.getElementById('debugOutput').textContent = JSON.stringify(data.records.slice(0, 3), null, 2);
+          }
+
+          // Process records with our enhanced date parser
+          const processedRecords = data.records
+            .map(record => {
+              const fields = record.fields;
+              const firstOnAir = parseDate(fields["First On Air"]);
+              const contractEnd = parseDate(fields["Contract Ends (Calculated) Date For Sorting"]);
+              const contractTerm = calculateContractTerm(firstOnAir, contractEnd);
+
+              return {
+                ...record,
+                firstOnAir,
+                contractEnd,
+                contractTerm,
+                jobNumber: fields["Job Number"] || "",
+                jobName: fields["Job Name"] || ""
+              };
+            })
+            .filter(record => record.firstOnAir && record.contractEnd);
+
+          // Store for later filtering/zooming
+          currentRecords = processedRecords;
         }
 
-        // Show raw data in debug panel
-        if (document.getElementById('debugOutput').style.display !== 'none') {
-          document.getElementById('debugOutput').textContent = JSON.stringify(data.records.slice(0, 3), null, 2);
-        }
+        // Sort records based on current sort settings
+        const sortedRecords = [...currentRecords].sort((a, b) => {
+          let comparison = 0;
 
-        // Process records with our enhanced date parser
-        const processedRecords = data.records
-          .map(record => {
-            const fields = record.fields;
-            const firstOnAir = parseDate(fields["First On Air"]);
-            const contractEnd = parseDate(fields["Contract Ends (Calculated) Date For Sorting"]);
+          switch (currentSortField) {
+            case 'jobNumber':
+              comparison = a.jobNumber.localeCompare(b.jobNumber);
+              break;
+            case 'jobName':
+              comparison = a.jobName.localeCompare(b.jobName);
+              break;
+            case 'firstOnAir':
+              comparison = a.firstOnAir - b.firstOnAir;
+              break;
+            case 'contractTerm':
+              // Extract numeric value for sorting
+              const aTermValue = parseFloat(a.contractTerm.split(' ')[0]) || 0;
+              const bTermValue = parseFloat(b.contractTerm.split(' ')[0]) || 0;
+              comparison = aTermValue - bTermValue;
+              break;
+            case 'contractEnd':
+              comparison = a.contractEnd - b.contractEnd;
+              break;
+            case 'status':
+              const getStatusPriority = (record) => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
 
-            return { ...record, firstOnAir, contractEnd };
-          })
-          .filter(record => record.firstOnAir && record.contractEnd);
+                if (record.contractEnd < today) return 4; // Expired
+                if (record.firstOnAir > today) return 1; // Upcoming
+                if (record.contractEnd <= new Date(today.getTime() + 30 * 86400000)) return 3; // Expiring Soon
+                return 2; // Active
+              };
+              comparison = getStatusPriority(a) - getStatusPriority(b);
+              break;
+            default:
+              comparison = 0;
+          }
 
-        // Store for later filtering/zooming
-        currentRecords = processedRecords;
+          // Apply sort direction
+          return currentSortDirection === 'asc' ? comparison : -comparison;
+        });
 
-        // Sort by start date for the table
-        const sortedRecords = [...processedRecords].sort((a, b) => a.firstOnAir - b.firstOnAir);
+        // Filter by job number if search is active
+        const jobFilter = document.getElementById('jobFilter').value.trim().toLowerCase();
+        const filteredRecords = jobFilter
+          ? sortedRecords.filter(record =>
+              record.jobNumber.toLowerCase().includes(jobFilter) ||
+              record.jobName.toLowerCase().includes(jobFilter))
+          : sortedRecords;
 
         // Build contracts table
         let html = `<table>
                     <thead>
                       <tr>
-                        <th>Job Number</th>
-                        <th>Job Name</th>
-                        <th>First On Air</th>
-                        <th>Contract Ends</th>
-                        <th>Status</th>
+                        <th data-sort="jobNumber" class="${currentSortField === 'jobNumber' ? `sort-${currentSortDirection}` : ''}">Job Number</th>
+                        <th data-sort="jobName" class="${currentSortField === 'jobName' ? `sort-${currentSortDirection}` : ''}">Job Name</th>
+                        <th data-sort="firstOnAir" class="${currentSortField === 'firstOnAir' ? `sort-${currentSortDirection}` : ''}">First On Air</th>
+                        <th data-sort="contractTerm" class="${currentSortField === 'contractTerm' ? `sort-${currentSortDirection}` : ''}">Contract Term</th>
+                        <th data-sort="contractEnd" class="${currentSortField === 'contractEnd' ? `sort-${currentSortDirection}` : ''}">Contract Ends</th>
+                        <th data-sort="status" class="${currentSortField === 'status' ? `sort-${currentSortDirection}` : ''}">Status</th>
                       </tr>
                     </thead>
                     <tbody>`;
 
-        sortedRecords.forEach(record => {
+        filteredRecords.forEach(record => {
           // Determine job status
           const TODAY = new Date();
           TODAY.setHours(0, 0, 0, 0);
 
           const isActive = record.firstOnAir <= TODAY && record.contractEnd >= TODAY;
-          const isExpiring = !isActive && record.contractEnd <= new Date(TODAY.getTime() + 30 * 86400000);
+          const isExpiring = isActive && record.contractEnd <= new Date(TODAY.getTime() + 30 * 86400000);
           const isExpired = record.contractEnd < TODAY;
+          const isUpcoming = record.firstOnAir > TODAY;
 
           let statusClass = '';
           let statusText = '';
@@ -603,9 +757,10 @@
           }
 
           html += `<tr class="${statusClass}">
-                    <td>${record.fields["Job Number"] || ""}</td>
-                    <td>${record.fields["Job Name"] || ""}</td>
+                    <td>${record.jobNumber}</td>
+                    <td>${record.jobName}</td>
                     <td>${formatDate(record.firstOnAir)}</td>
+                    <td>${record.contractTerm}</td>
                     <td>${formatDate(record.contractEnd)}</td>
                     <td>${statusText}</td>
                   </tr>`;
@@ -614,8 +769,15 @@
         html += `</tbody></table>`;
         container.innerHTML = html;
 
+        // Add sort handlers to table headers
+        document.querySelectorAll('th[data-sort]').forEach(header => {
+          header.addEventListener('click', function() {
+            sortTable(this.getAttribute('data-sort'));
+          });
+        });
+
         // Render timeline
-        renderTimeline(processedRecords);
+        renderTimeline(currentRecords);
 
       } catch (err) {
         container.innerHTML = `<p class="error">Error loading contracts: ${err.message}</p>`;
@@ -623,7 +785,7 @@
       }
     }
 
-    // Enhanced timeline renderer
+    // Enhanced timeline renderer with centered events
     function renderTimeline(records) {
       // Explicitly set today to midnight for consistent comparison
       const TODAY = new Date();
@@ -684,7 +846,16 @@
       const showActive = document.getElementById('showActive').checked;
       const showUpcoming = document.getElementById('showUpcoming').checked;
 
+      // Get job filter if any
+      const jobFilter = document.getElementById('jobFilter').value.trim().toLowerCase();
+
       const filteredRecords = records.filter(record => {
+        // First apply job filter if any
+        if (jobFilter && !record.jobNumber.toLowerCase().includes(jobFilter) &&
+            !record.jobName.toLowerCase().includes(jobFilter)) {
+          return false;
+        }
+
         const isActive = record.firstOnAir <= TODAY && record.contractEnd >= TODAY;
         const isExpired = record.contractEnd < TODAY;
         const isUpcoming = record.firstOnAir > TODAY;
@@ -747,7 +918,7 @@
         record.lane = laneIndex;
       });
 
-      // Render events by lane
+      // Render events by lane - with labels positioned near the Today marker
       filteredRecords.forEach(record => {
         if (record.lane === undefined) return; // Skip records without lane assignment
 
@@ -769,36 +940,57 @@
 
         // Determine status for styling
         const isActive = firstOnAir <= TODAY && contractEnd >= TODAY;
-        const isExpiringSoon = !isActive && contractEnd <= new Date(TODAY.getTime() + 30 * MS_PER_DAY);
+        const isExpiringSoon = isActive && contractEnd <= new Date(TODAY.getTime() + 30 * MS_PER_DAY);
         const isExpired = contractEnd < TODAY;
 
-        // Create event element
+        // Create event element (the timeline bar)
         const block = document.createElement("div");
         block.className = "timeline-event";
 
         // Add status classes
         if (isExpiringSoon) block.classList.add("timeline-event-expiring");
         if (isExpired) block.classList.add("timeline-event-expired");
-        if (isActive) block.classList.add("timeline-event-active");
+        if (isActive && !isExpiringSoon) block.classList.add("timeline-event-active");
 
-        // Set position and dimensions
+        // Set position and dimensions of the timeline bar
         block.style.left = `${leftPx}px`;
         block.style.width = `${widthPx}px`;
         block.style.top = `${lane * 35 + 10}px`; // Position in assigned lane
+        block.style.height = "24px"; // Fixed height for the bar
+        block.style.padding = "2px 4px"; // Add minimal padding
 
-        // Set content with both dates for clarity
+        // Calculate position for text alignment within the bar
+        const todayOffset = Math.floor((TODAY - timelineStart) / MS_PER_DAY) * pxPerDay;
+        const startOffset = leftPx;
+        const endOffset = leftPx + widthPx;
+
+        // Position content near the Today line within the bar itself
+        if (startOffset <= todayOffset && endOffset >= todayOffset) {
+          // If bar spans across today, align content to today position
+          const todayRelativePosition = todayOffset - startOffset;
+          block.style.textAlign = "left";
+          block.style.paddingLeft = `${todayRelativePosition}px`;
+        } else if (endOffset < todayOffset) {
+          // If bar is before today, align content to right
+          block.style.textAlign = "right";
+        } else {
+          // If bar is after today, align content to left
+          block.style.textAlign = "left";
+        }
+
+        // Set content inside the bar
         block.innerHTML = `
-          <div class="event-title">${record.fields["Job Name"] || "Unnamed Job"}</div>
+          <div class="event-title">${record.jobName}</div>
           <div class="event-dates">${formatDate(firstOnAir)} - ${formatDate(contractEnd)}</div>
         `;
 
-        // Add click handler with error prevention
+        // Add click handler
         block.onclick = () => {
           try {
             // Store relevant job data in sessionStorage instead of relying solely on URL
             const jobData = {
-              jobNumber: record.fields["Job Number"] || "",
-              jobName: record.fields["Job Name"] || "",
+              jobNumber: record.jobNumber,
+              jobName: record.jobName,
               firstOnAir: formatDate(firstOnAir),
               contractEnd: formatDate(contractEnd)
             };
@@ -807,7 +999,7 @@
 
             // Navigate with fallback
             try {
-              window.location.href = `job-details.html?jobNumber=${encodeURIComponent(record.fields["Job Number"] || "")}`;
+              window.location.href = `job-details.html?jobNumber=${encodeURIComponent(record.jobNumber)}`;
             } catch (navError) {
               console.error("Navigation error:", navError);
               alert(`Job Details:\nNumber: ${jobData.jobNumber}\nName: ${jobData.jobName}\nStart: ${jobData.firstOnAir}\nEnd: ${jobData.contractEnd}`);
@@ -818,7 +1010,7 @@
           }
         };
 
-        // Append to container
+        // Append element to container
         eventsDiv.appendChild(block);
       });
 
@@ -826,9 +1018,9 @@
       const laneCount = lanes.length;
       eventsDiv.style.height = `${Math.max(laneCount * 35 + 50, 200)}px`;
 
-      // Scroll to today or beginning
+      // Center view on today
       const container = document.getElementById('timeline-container');
-      container.scrollLeft = Math.max(0, todayOffset - (container.clientWidth / 2));
+      container.scrollLeft = todayOffset - (container.clientWidth / 2);
     }
 
     // Generic fetchData function
