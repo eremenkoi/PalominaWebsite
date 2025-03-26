@@ -65,9 +65,9 @@ exports.handler = async function(event, context) {
 // Get job details from Airtable
 async function getJobDetails(jobNumber) {
   return new Promise((resolve, reject) => {
-    base('tbl9O07R90s6qdgtK').select({
+    base('tblavZRcB3OTb37vq').select({
       maxRecords: 1,
-      filterByFormula: `{Job Number} = "${jobNumber}"`
+      filterByFormula: `{Job No.} = "${jobNumber}"`
     }).firstPage((err, records) => {
       if (err) {
         return reject(err);
@@ -81,25 +81,38 @@ async function getJobDetails(jobNumber) {
       const record = records[0];
       const fields = record.fields;
 
+       // Now you'll see the 21 fields from "Job Tracker" table
+        console.log("Raw fields:", fields);
+
       console.log(`Found job: ${fields["Job Name"] || "Unnamed Job"}`);
 
-      // Format job data
-      const job = {
-        id: record.id,
-        jobNumber: fields["Job Number"] || jobNumber,
-        jobName: fields["Job Name"] || "Unnamed Job",
-        firstOnAir: fields["First On Air"] || null,
-        contractEnd: fields["Contract Ends (Calculated) Date For Sorting"] ||
-                    fields["Contract Ends"] || null,
-        contractTerm: fields["Contract Term"] || null,
-        client: getClientName(fields),
-        campaign: fields["Campaign"] || null,
-        territory: fields["Territory"] || "Australia",
-        usageRights: fields["Campaign Release/Usage"] || null,
-        jobDescription: fields["Job Description / Product Details"] || null,
+      // Format job data with your 21 columns
+const job = {
+  id: record.id,
+  jobTrackerPrimaryID: fields["Job Tracker Primary ID"] || null,
+  product: fields["Product"] || null,
+  nameOfSpot: fields["Name of Spot"] || null,
+  contractTerm: fields["Contract Term"] || null,
+  firstOnAir: fields["First On Air"] || null,
+  contractEnds: fields["Contract Ends (Calculated) Date For Sorting"]
+    || fields["Contract Ends"]
+    || null,
+  campaignRelease: fields["Campaign Release/Usage"] || null,
+  campaignMedia: fields["Campaign Media/Deliverables"] || null,
+  territory: fields["Territory"] || null,
+  jobNo: fields["Job No."] || null,
+  type: fields["Type"] || null,
+  headShot: fields["Head Shot"] || null,
+  role: fields["Role"] || null,
+  contractDOR: fields["Contract / DOR"] || null,
+  jobSummary: fields["Job Summary"] || null,
+  contractFee: fields["Contract Fee"] || null,
+  loading: fields["Loading"] || null,
+  options: fields["Options"] || null,
+  rollover: fields["Rollover (inc VO)"] || null,
+  voiceover: fields["Voiceover"] || null,
+  notesJobTracker: fields["NOTES Job Tracker"] || null
 
-        // Add any other fields needed for the job details page
-        documents: formatDocuments(fields)
       };
 
       resolve(job);
