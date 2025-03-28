@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>PaloPay Client Portal Dashboard</title>
+  <title>Sunday Gravy Client Portal Dashboard</title>
   <style>
     /* Global Styles */
     body {
@@ -111,7 +111,7 @@
       grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
       gap: 20px;
     }
-    .campaign-card, .job-card {
+    .product-card, .job-card {
       background: #fff;
       padding: 15px;
       border: 1px solid #ddd;
@@ -120,7 +120,7 @@
       transition: transform 0.2s;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
-    .campaign-card:hover, .job-card:hover {
+    .product-card:hover, .job-card:hover {
       transform: scale(1.02);
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     }
@@ -400,20 +400,20 @@
   </style>
 </head>
 <body>
-  <!-- Global Header: Text instead of Logo -->
+  <!-- Global Header: Sunday Gravy instead of DDB Melbourne -->
   <header class="global-header">
-    DDB Melbourne
+    Sunday Gravy
   </header>
   <!-- Main Header -->
   <header class="main-header">
-    <h1>Palopay Client Portal</h1>
+    <h1>Sunday Gravy Client Portal</h1>
     <p>Dashboard – Select a view below</p>
     <div class="current-date" id="currentDate"></div>
   </header>
-  <!-- Tab Navigation -->
+  <!-- Tab Navigation - Changed Campaign Gallery to Product Gallery -->
   <div class="tabs">
     <div class="tab active" data-target="calendarView">Calendar View</div>
-    <div class="tab" data-target="campaignGallery">Campaign Gallery</div>
+    <div class="tab" data-target="productGallery">Product Gallery</div>
     <div class="tab" data-target="jobsGallery">Jobs Gallery</div>
   </div>
 
@@ -461,31 +461,30 @@
     </div>
   </div>
 
-  <!-- Campaign Gallery View -->
-  <div id="campaignGallery" class="view">
-    <h2>Campaign Gallery</h2>
+  <!-- Product Gallery View (renamed from Campaign Gallery) -->
+  <div id="productGallery" class="view">
+    <h2>Product Gallery</h2>
     <div class="gallery-search">
-      <input type="text" id="campaignJobNumberFilter" placeholder="Filter by Campaign Number" />
-      <input type="text" id="campaignJobNameFilter" placeholder="Filter by Campaign Name" />
-      <select id="campaignAdvertiserFilter">
+      <input type="text" id="productFilter" placeholder="Filter by Product Name" />
+      <select id="productAdvertiserFilter">
         <option value="">All Advertisers</option>
       </select>
-      <!-- Re-render campaigns with current filters -->
-      <button class="btn" onclick="renderCampaignsFromRecords()">Search</button>
+      <!-- Re-render products with current filters -->
+      <button class="btn" onclick="renderProductsFromRecords()">Search</button>
     </div>
-    <div id="campaignGalleryContent" class="gallery-grid">
-      Loading campaigns...
+    <div id="productGalleryContent" class="gallery-grid">
+      Loading products...
     </div>
-    <!-- Campaign Jobs Table (hidden by default) -->
-    <div id="campaignJobsContainer" style="display: none; margin-top: 20px;">
+    <!-- Product Jobs Table (hidden by default) -->
+    <div id="productJobsContainer" style="display: none; margin-top: 20px;">
       <div class="table-header">
-        <h3 id="selectedCampaignTitle">Campaign Jobs</h3>
-        <button class="btn btn-alt" onclick="backToCampaigns()">Back to Campaigns</button>
-        <button class="btn btn-alt" onclick="downloadCampaignJobsCSV()">Download CSV</button>
-        <button class="btn btn-alt" onclick="printCampaignJobsCSV()">Print CSV</button>
+        <h3 id="selectedProductTitle">Product Jobs</h3>
+        <button class="btn btn-alt" onclick="backToProducts()">Back to Products</button>
+        <button class="btn btn-alt" onclick="downloadProductJobsCSV()">Download CSV</button>
+        <button class="btn btn-alt" onclick="printProductJobsCSV()">Print CSV</button>
       </div>
 
-      <div id="campaignJobsTableContainer" class="table-container">
+      <div id="productJobsTableContainer" class="table-container">
         Loading jobs...
       </div>
     </div>
@@ -528,11 +527,11 @@
     TODAY.setHours(0, 0, 0, 0);
     let pxPerDay = 20; // Default zoom level for timeline
     let currentRecords = []; // Store all records
-    let currentCampaigns = []; // Store all campaigns
+    let currentProducts = []; // Store all products
     let currentAdvertisers = []; // Store all advertisers for filters
     let currentSortField = 'firstOnAir'; // Default sort field
     let currentSortDirection = 'asc'; // Default sort direction
-    let selectedCampaign = null; // Currently selected campaign
+    let selectedProduct = null; // Currently selected product
     let rawAirtableRecords = []; // Store the raw records from Airtable
     let personMap = {}; // Map of person record IDs to names
     let agencyMap = {}; // Map of agency record IDs to names
@@ -648,286 +647,240 @@
       return null;
     }
 
-    // Process Airtable records
+    // Process Airtable records, filtering for 'EG' job numbers
     function processRecords(records) {
-  if (!records || !Array.isArray(records)) return [];
-  debug(`Processing ${records.length} records from Airtable...`);
+      if (!records || !Array.isArray(records)) return [];
+      debug(`Processing ${records.length} records from Airtable...`);
 
-  const processedRecords = [];
-  personMap = {}; // Clear existing maps
-  agencyMap = {};
-  campaignMap = {}; // Add map for campaigns
-  jobTrackerMap = {}; // Add map for job trackers
-  const jobMap = {}; // Map to collect jobs by ID
-
-  // First pass: build lookup maps for all linked records
-  records.forEach(record => {
-    const fields = record.fields || {};
-
-    // Store this record in jobMap for lookup
-    if (record.id) {
-      jobMap[record.id] = record;
-    }
-
-    // Process Person records (performers)
-    if (fields["Person"] && Array.isArray(fields["Person"])) {
-      fields["Person"].forEach(person => {
-        if (typeof person === 'object' && person.id) {
-          if (person.fields && person.fields["Legal Name"]) {
-            personMap[person.id] = person.fields["Legal Name"];
-          }
-        }
+      // First filter for job numbers starting with 'EG'
+      records = records.filter(record => {
+        const jobNumber = record.fields && (record.fields["Job Number"] || record.fields["Job No."]) || "";
+        return jobNumber.startsWith('EG');
       });
-    }
 
-    // Process Agency records
-    if (fields["Talent Agency"] && Array.isArray(fields["Talent Agency"])) {
-      fields["Talent Agency"].forEach(agency => {
-        if (typeof agency === 'object' && agency.id) {
-          if (agency.fields && agency.fields["Name"]) {
-            agencyMap[agency.id] = agency.fields["Name"];
-          }
+      debug(`Found ${records.length} records with job numbers starting with 'EG'`);
+
+      const processedRecords = [];
+      personMap = {}; // Clear existing maps
+      agencyMap = {};
+      productMap = {};  // Map for products
+      jobTrackerMap = {}; // Map for job trackers
+      const jobMap = {}; // Map to collect jobs by ID
+
+      // First pass: build lookup maps for all linked records
+      records.forEach(record => {
+        const fields = record.fields || {};
+
+        // Store this record in jobMap for lookup
+        if (record.id) {
+          jobMap[record.id] = record;
         }
-      });
-    }
 
-    // Process Campaign records - extremely important for campaign gallery
-    if (fields["Campaign"] && Array.isArray(fields["Campaign"])) {
-      fields["Campaign"].forEach(campaign => {
-        if (typeof campaign === 'object' && campaign.id) {
-          campaignMap[campaign.id] = campaign;
-          if (campaign.fields && campaign.fields["Name"]) {
-            // Store the campaign name by ID for later lookup
-            campaignMap[campaign.id].name = campaign.fields["Name"];
-          }
-        }
-      });
-    }
-
-    // Track Job Trackers if present
-    if (fields["Job Trackers"] && Array.isArray(fields["Job Trackers"])) {
-      fields["Job Trackers"].forEach(tracker => {
-        if (typeof tracker === 'object' && tracker.id) {
-          jobTrackerMap[tracker.id] = tracker;
-        } else if (typeof tracker === 'string') {
-          jobTrackerMap[tracker] = { id: tracker };
-        }
-      });
-    }
-  });
-
-  debug(`Built lookup maps: ${Object.keys(personMap).length} persons, ${Object.keys(agencyMap).length} agencies, ${Object.keys(campaignMap).length} campaigns`);
-
-  // Second pass: process each record with proper lookups
-  records.forEach((record, index) => {
-    try {
-      const fields = record.fields || {};
-
-      // Get job number and name
-      const jobNumber = fields["Job Number"] || fields["Job No."] || "";
-      const jobName = fields["Job Name"] || fields["Name of Spot"] || "";
-
-      // Process dates
-      const firstOnAir = parseDate(fields["First On Air"]) || new Date();
-      const contractEnd = parseDate(fields["Contract Ends"]) ||
-                          parseDate(fields["Contract Ends (Calculated) Date For Sorting"]) ||
-                          new Date(firstOnAir.getTime() + 30 * 86400000);
-
-      // Get product/client from either direct field or Campaign field
-      let product = "";
-      if (fields["Product"]) {
-        product = fields["Product"];
-      } else if (fields["Job Description - Product Details"]) {
-        product = fields["Job Description - Product Details"];
-      } else if (fields["Advertiser"]) {
-        product = fields["Advertiser"];
-      } else if (fields["Advertiser WEBSITE USE"]) {
-        product = fields["Advertiser WEBSITE USE"];
-      }
-
-      // Enhanced campaign extraction logic
-      let campaignId = "";
-      let campaignName = "";
-      let campaignObject = null;
-
-      // First try to get campaign from linked Campaign records
-      if (fields["Campaign"] && Array.isArray(fields["Campaign"]) && fields["Campaign"].length > 0) {
-        const campaign = fields["Campaign"][0];
-
-        if (typeof campaign === 'string') {
-          // It's a string ID
-          campaignId = campaign;
-          if (campaignMap[campaign] && campaignMap[campaign].name) {
-            campaignName = campaignMap[campaign].name;
-          }
-        } else if (campaign && typeof campaign === 'object') {
-          // It's an object
-          if (campaign.id) {
-            campaignId = campaign.id;
-            campaignObject = campaign;
-
-            if (campaign.fields && campaign.fields["Campaign Name"]) {
-              campaignName = campaign.fields["Campaign Name"];
+        // Process Person records (performers)
+        if (fields["Person"] && Array.isArray(fields["Person"])) {
+          fields["Person"].forEach(person => {
+            if (typeof person === 'object' && person.id) {
+              if (person.fields && person.fields["Legal Name"]) {
+                personMap[person.id] = person.fields["Legal Name"];
+              }
             }
+          });
+        }
 
-          } else if (campaignMap[campaign.id] && campaignMap[campaign.id].name) {
-            campaignName = campaignMap[campaign.id].name;
+        // Process Agency records
+        if (fields["Talent Agency"] && Array.isArray(fields["Talent Agency"])) {
+          fields["Talent Agency"].forEach(agency => {
+            if (typeof agency === 'object' && agency.id) {
+              if (agency.fields && agency.fields["Name"]) {
+                agencyMap[agency.id] = agency.fields["Name"];
+              }
+            }
+          });
+        }
+
+        // Track products for product gallery
+        if (fields["Product"]) {
+          const product = fields["Product"];
+          if (!productMap[product]) {
+            productMap[product] = {
+              name: product,
+              jobs: []
+            };
           }
+          productMap[product].jobs.push(record.id);
         }
-      }
 
-      // If we didn't get a campaign name but have an ID
-      if (campaignId && !campaignName) {
-        campaignName = "Campaign " + campaignId;
-      }
+        // Track Job Trackers if present
+        if (fields["Job Trackers"] && Array.isArray(fields["Job Trackers"])) {
+          fields["Job Trackers"].forEach(tracker => {
+            if (typeof tracker === 'object' && tracker.id) {
+              jobTrackerMap[tracker.id] = tracker;
+            } else if (typeof tracker === 'string') {
+              jobTrackerMap[tracker] = { id: tracker };
+            }
+          });
+        }
+      });
 
-      // Fallbacks for campaign identification
-      if (!campaignId) {
-        // Try to extract from job number
-        if (jobNumber) {
-          const parts = jobNumber.split('-');
-          if (parts.length > 0) {
-            campaignId = parts[0];
+      debug(`Built lookup maps: ${Object.keys(personMap).length} persons, ${Object.keys(agencyMap).length} agencies, ${Object.keys(productMap).length} products`);
+
+      // Second pass: process each record with proper lookups
+      records.forEach((record, index) => {
+        try {
+          const fields = record.fields || {};
+
+          // Get job number and name
+          const jobNumber = fields["Job Number"] || fields["Job No."] || "";
+          const jobName = fields["Job Name"] || fields["Name of Spot"] || "";
+
+          // Process dates
+          const firstOnAir = parseDate(fields["First On Air"]) || new Date();
+          const contractEnd = parseDate(fields["Contract Ends"]) ||
+                              parseDate(fields["Contract Ends (Calculated) Date For Sorting"]) ||
+                              new Date(firstOnAir.getTime() + 30 * 86400000);
+
+          // Get product/client from either direct field or Campaign field
+          let product = "";
+          if (fields["Product"]) {
+            product = fields["Product"];
+          } else if (fields["Job Description - Product Details"]) {
+            product = fields["Job Description - Product Details"];
+          } else if (fields["Advertiser"]) {
+            product = fields["Advertiser"];
+          } else if (fields["Advertiser WEBSITE USE"]) {
+            product = fields["Advertiser WEBSITE USE"];
           }
-        }
 
-        // Use Campaign ID or Campaign Name field if available
-        if (fields["Campaign ID"]) {
-          campaignId = fields["Campaign ID"];
-        }
+          // Process all persons/performers instead of just one
+          let performers = [];
 
-        if (fields["Campaign Name"]) {
-          campaignName = fields["Campaign Name"];
-        } else if (product) {
-          // Last resort: use product + "Campaign"
-          campaignName = product + " Campaign";
-        } else if (campaignId) {
-          campaignName = "Campaign " + campaignId;
-        }
-      }
+          if (fields["Person"] && Array.isArray(fields["Person"]) && fields["Person"].length > 0) {
+            // Process all persons in the array
+            fields["Person"].forEach(person => {
+              let personInfo = {
+                id: '',
+                name: ''
+              };
 
-      // Improved person/performer extraction
-      let performerName = "";
-      let performerId = "";
+              if (typeof person === 'string') {
+                personInfo.id = person;
+                personInfo.name = personMap[person] || person;
+              } else if (person && typeof person === 'object') {
+                if (person.id) {
+                  personInfo.id = person.id;
+                  if (person.fields && person.fields["Legal Name"]) {
+                    personInfo.name = person.fields["Legal Name"];
+                  } else {
+                    personInfo.name = personMap[person.id] || person.id;
+                  }
+                }
+              }
 
-      if (fields["Person"] && Array.isArray(fields["Person"]) && fields["Person"].length > 0) {
-        const person = fields["Person"][0];
+              if (personInfo.id) {
+                performers.push(personInfo);
+              }
+            });
+          }
 
-        if (typeof person === 'string') {
-          // If it's a string, it's just an ID
-          performerId = person;
-          performerName = personMap[person] || person;
-        } else if (person && typeof person === 'object') {
-          // If it's an object with id property
-          if (person.id) {
-            performerId = person.id;
-            if (person.fields && person.fields["Legal Name"]) {
-              performerName = person.fields["Legal Name"];
-            } else {
-              performerName = personMap[person.id] || person.id;
+          // For backward compatibility, keep performerName and performerId as the first person
+          let performerName = performers.length > 0 ? performers[0].name : "";
+          let performerId = performers.length > 0 ? performers[0].id : "";
+
+          // Improved agency extraction
+          let agencyName = "";
+          let agencyId = "";
+
+          if (fields["Talent Agency"] && Array.isArray(fields["Talent Agency"]) && fields["Talent Agency"].length > 0) {
+            const agency = fields["Talent Agency"][0];
+
+            if (typeof agency === 'string') {
+              // If it's a string, it's just an ID
+              agencyId = agency;
+              agencyName = agencyMap[agency] || agency;
+            } else if (agency && typeof agency === 'object') {
+              // If it's an object with id property
+              if (agency.id) {
+                agencyId = agency.id;
+                if (agency.fields && agency.fields["Name"]) {
+                  agencyName = agency.fields["Name"];
+                } else {
+                  agencyName = agencyMap[agency.id] || agency.id;
+                }
+              }
             }
           }
+
+          // Get linked Job Tracker records
+          const linkedJobTrackers = [];
+
+          // If this record has Job Trackers field, process them
+          if (fields["Job Trackers"] && Array.isArray(fields["Job Trackers"])) {
+            fields["Job Trackers"].forEach(tracker => {
+              let trackerId = '';
+
+              if (typeof tracker === 'string') {
+                trackerId = tracker;
+              } else if (tracker && tracker.id) {
+                trackerId = tracker.id;
+              }
+
+              if (trackerId && jobMap[trackerId]) {
+                linkedJobTrackers.push(jobMap[trackerId]);
+              }
+            });
+          }
+
+          // Create processed record with all the enhanced data
+          processedRecords.push({
+            id: record.id,
+            jobNumber: jobNumber,
+            jobName: jobName,
+            product: product,
+            nameOfSpot: jobName,
+            contractTerm: fields["Contract Term"] || "",
+            firstOnAir: firstOnAir,
+            contractEnd: contractEnd,
+            campaignRelease: fields["Campaign Release/Usage"] || "",
+            campaignMedia: fields["Campaign Media/Deliverables"] || "",
+            territory: fields["Territory"] || fields["Shoot Location"] || "",
+            type: fields["Type"] || "",
+            headShot: fields["Head Shot"] || "",
+            role: fields["Role"] || "",
+            contractDOR: fields["Contract / DOR"] || "",
+            jobSummary: fields["Job Summary"] || fields["Job Description - Product Details"] || "",
+            contractFee: fields["Contract Fee"] || "",
+            loading: fields["Loading"] || "",
+            options: fields["Options"] || "",
+            rollover: fields["Rollover (inc VO)"] || "",
+            voiceover: fields["Voiceover"] || "",
+            notes: fields["NOTES Job Tracker"] || "",
+            performerName: performerName,
+            performerId: performerId,
+            performers: performers, // Add all performers
+            talentAgencyName: agencyName,
+            agencyId: agencyId,
+            linkedJobTrackers: linkedJobTrackers,
+            rawFields: fields // Keep raw fields for reference
+          });
+        } catch (error) {
+          debug(`Error processing record ${index}: ${error.message}`);
+          console.error(`Error processing record ${index}:`, error, record);
         }
-      }
-
-      // Improved agency extraction
-      let agencyName = "";
-      let agencyId = "";
-
-      if (fields["Talent Agency"] && Array.isArray(fields["Talent Agency"]) && fields["Talent Agency"].length > 0) {
-        const agency = fields["Talent Agency"][0];
-
-        if (typeof agency === 'string') {
-          // If it's a string, it's just an ID
-          agencyId = agency;
-          agencyName = agencyMap[agency] || agency;
-        } else if (agency && typeof agency === 'object') {
-          // If it's an object with id property
-          if (agency.id) {
-            agencyId = agency.id;
-            if (agency.fields && agency.fields["Name"]) {
-              agencyName = agency.fields["Name"];
-            } else {
-              agencyName = agencyMap[agency.id] || agency.id;
-            }
-          }
-        }
-      }
-
-      // Get linked Job Tracker records
-      const linkedJobTrackers = [];
-
-      // If this record has Job Trackers field, process them
-      if (fields["Job Trackers"] && Array.isArray(fields["Job Trackers"])) {
-        fields["Job Trackers"].forEach(tracker => {
-          let trackerId = '';
-
-          if (typeof tracker === 'string') {
-            trackerId = tracker;
-          } else if (tracker && tracker.id) {
-            trackerId = tracker.id;
-          }
-
-          if (trackerId && jobMap[trackerId]) {
-            linkedJobTrackers.push(jobMap[trackerId]);
-          }
-        });
-      }
-
-      // Create processed record with all the enhanced data
-      processedRecords.push({
-        id: record.id,
-        jobNumber: jobNumber,
-        jobName: jobName,
-        product: product,
-        nameOfSpot: jobName,
-        contractTerm: fields["Contract Term"] || "",
-        firstOnAir: firstOnAir,
-        contractEnd: contractEnd,
-        campaignRelease: fields["Campaign Release/Usage"] || "",
-        campaignMedia: fields["Campaign Media/Deliverables"] || "",
-        territory: fields["Territory"] || fields["Shoot Location"] || "",
-        type: fields["Type"] || "",
-        headShot: fields["Head Shot"] || "",
-        role: fields["Role"] || "",
-        contractDOR: fields["Contract / DOR"] || "",
-        jobSummary: fields["Job Summary"] || fields["Job Description - Product Details"] || "",
-        contractFee: fields["Contract Fee"] || "",
-        loading: fields["Loading"] || "",
-        options: fields["Options"] || "",
-        rollover: fields["Rollover (inc VO)"] || "",
-        voiceover: fields["Voiceover"] || "",
-        notes: fields["NOTES Job Tracker"] || "",
-        performerName: performerName,
-        performerId: performerId,
-        talentAgencyName: agencyName,
-        agencyId: agencyId,
-        campaignName: campaignName,
-        campaignId: campaignId,
-        campaignObject: campaignObject,
-        linkedJobTrackers: linkedJobTrackers,
-        rawFields: fields // Keep raw fields for reference
       });
-    } catch (error) {
-      debug(`Error processing record ${index}: ${error.message}`);
-      console.error(`Error processing record ${index}:`, error, record);
+
+      debug(`Successfully processed ${processedRecords.length} out of ${records.length} records`);
+
+      // Log information about processed products
+      const uniqueProducts = new Set();
+      processedRecords.forEach(record => {
+        if (record.product) {
+          uniqueProducts.add(record.product);
+        }
+      });
+      debug(`Found ${uniqueProducts.size} unique products in processed records`);
+
+      return processedRecords;
     }
-  });
-
-  debug(`Successfully processed ${processedRecords.length} out of ${records.length} records`);
-
-  // Log some information about processed campaigns
-  const uniqueCampaigns = new Set();
-  processedRecords.forEach(record => {
-    if (record.campaignId) {
-      uniqueCampaigns.add(record.campaignId);
-    }
-  });
-  debug(`Found ${uniqueCampaigns.size} unique campaigns in processed records`);
-
-  return processedRecords;
-}
-
 
     // Extract unique advertisers/products
     function extractAdvertisers() {
@@ -939,15 +892,12 @@
         }
       });
 
-      const sampleProducts = ["Coles", "Mobil", "Dulux"];
-      sampleProducts.forEach(product => uniqueProducts.add(product));
-
       return Array.from(uniqueProducts).sort();
     }
 
     // Populate advertiser dropdowns
     function updateAdvertiserDropdowns(advertisers) {
-      const dropdownIds = ['advertiserFilter', 'campaignAdvertiserFilter', 'jobsGalleryAdvertiserFilter'];
+      const dropdownIds = ['advertiserFilter', 'productAdvertiserFilter', 'jobsGalleryAdvertiserFilter'];
       dropdownIds.forEach(dropdownId => {
         const dropdown = document.getElementById(dropdownId);
         if (dropdown) {
@@ -962,85 +912,33 @@
       });
     }
 
-    // Show job details in modal - now with our standard format table
-// Update your showJobDetails function
+    // Updated showJobDetails function that redirects to your existing job-details.html page
+    function showJobDetails(jobId) {
+      // Find the job record by its ID
+      const job = currentRecords.find(r => r.id === jobId);
+      if (!job) {
+        alert("Job details not found");
+        return;
+      }
 
-// Replace the showJobDetails function with this corrected version
-// Updated showJobDetails function that redirects to your existing job-details.html page
-function showJobDetails(jobId) {
-  // Find the job record by its ID
-  const job = currentRecords.find(r => r.id === jobId);
-  if (!job) {
-    alert("Job details not found");
-    return;
-  }
+      // Store basic job info in sessionStorage for the details page
+      const jobData = {
+        id: job.id,
+        jobNumber: job.jobNumber,
+        jobName: job.jobName,
+        product: job.product,
+        firstOnAir: formatFriendlyDate(job.firstOnAir),
+        contractEnd: formatFriendlyDate(job.contractEnd),
+        contractTerm: job.contractTerm,
+        campaignName: job.campaignName
+      };
 
-  // Store basic job info in sessionStorage for the details page
-  const jobData = {
-    id: job.id,
-    jobNumber: job.jobNumber,
-    jobName: job.jobName,
-    product: job.product,
-    firstOnAir: formatFriendlyDate(job.firstOnAir),
-    contractEnd: formatFriendlyDate(job.contractEnd),
-    contractTerm: job.contractTerm,
-    campaignName: job.campaignName
-  };
+      // Store the data in sessionStorage so your job-details.html can use it
+      sessionStorage.setItem('currentJobData', JSON.stringify(jobData));
 
-  // Store the data in sessionStorage so your job-details.html can use it
-  sessionStorage.setItem('currentJobData', JSON.stringify(jobData));
-
-  // Redirect directly to your existing job-details.html page
-  window.location.href = `job-details.html?jobNumber=${encodeURIComponent(job.jobNumber)}`;
-}
-
-
-// Function to fetch Job Tracker records from Airtable API
-async function fetchJobTrackerRecords(jobNumber) {
-  try {
-    // Make API call to Airtable
-    const response = await fetch('/.netlify/functions/fetchJobTrackers', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ jobNumber: jobNumber }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch job tracker records');
+      // Redirect directly to your existing job-details.html page
+      window.location.href = `job-details.html?jobNumber=${encodeURIComponent(job.jobNumber)}`;
     }
-
-    const data = await response.json();
-    return data.records || [];
-  } catch (error) {
-    console.error('Error fetching job tracker records:', error);
-    throw error;
-  }
-}
-
-// Improved showCampaignJobs function to handle special characters properly
-function showCampaignJobs(campaignId, campaignName) {
-  selectedCampaign = campaignId;
-  document.getElementById('campaignGalleryContent').style.display = 'none';
-  document.getElementById('campaignJobsContainer').style.display = 'block';
-
-  // Safely set the campaign title
-  const titleElement = document.getElementById('selectedCampaignTitle');
-  titleElement.textContent = 'Campaign: ' + campaignName;
-
-  debug(`Showing jobs for campaign: ${campaignId}`);
-
-  // Get jobs for the selected campaign with proper matching
-  const campaignJobs = currentRecords.filter(record => {
-    return (record.campaignId && record.campaignId === campaignId) ||
-           (record.product && record.product === campaignId);
-  });
-
-  debug(`Found ${campaignJobs.length} jobs for campaign ${campaignId}`);
-
-  renderCampaignJobs(campaignJobs);
-}
 
     // Close job detail modal
     function closeJobDetail() {
@@ -1091,16 +989,16 @@ function showCampaignJobs(campaignId, campaignName) {
     function downloadTableCSV() {
       downloadTableCSV('calendarTableContainer', 'contracts.csv');
     }
-    function downloadCampaignJobsCSV() {
-      downloadTableCSV('campaignJobsTableContainer', 'campaign_' + selectedCampaign + '_jobs.csv');
+    function downloadProductJobsCSV() {
+      downloadTableCSV('productJobsTableContainer', 'product_' + selectedProduct + '_jobs.csv');
     }
     function downloadJobsCSV() {
       downloadTableCSV('jobsGalleryContent', 'jobs.csv');
     }
 
     // Print CSV function
-    function printCampaignJobsCSV() {
-      const table = document.querySelector("#campaignJobsTableContainer table");
+    function printProductJobsCSV() {
+      const table = document.querySelector("#productJobsTableContainer table");
       if (!table) {
         alert("No table found to print CSV");
         return;
@@ -1145,21 +1043,26 @@ function showCampaignJobs(campaignId, campaignName) {
       if (!records || !Array.isArray(records)) return [];
 
       try {
-        debug(`Filtering ${records.length} records for ${filterSet} view`);
+        // First filter to only include jobs with 'EG' prefix
+        records = records.filter(record => {
+          return String(record.jobNumber || '').startsWith('EG');
+        });
+
+        debug(`After 'EG' prefix filter: ${records.length} records`);
 
         const jobNumberElement = document.getElementById(
           filterSet === 'table' ? 'tableJobNumberFilter' :
-          filterSet === 'campaign' ? 'campaignJobNumberFilter' :
+          filterSet === 'product' ? 'productFilter' :
           'jobsGalleryNumberFilter'
         );
         const jobNameElement = document.getElementById(
           filterSet === 'table' ? 'tableJobNameFilter' :
-          filterSet === 'campaign' ? 'campaignJobNameFilter' :
+          filterSet === 'product' ? null :
           'jobsGalleryNameFilter'
         );
         const advertiserElement = document.getElementById(
           filterSet === 'table' ? 'advertiserFilter' :
-          filterSet === 'campaign' ? 'campaignAdvertiserFilter' :
+          filterSet === 'product' ? 'productAdvertiserFilter' :
           'jobsGalleryAdvertiserFilter'
         );
 
@@ -1214,10 +1117,10 @@ function showCampaignJobs(campaignId, campaignName) {
 
     // Apply filters: update both the table and timeline
     function applyTableFilters() {
-  const filteredRecords = filterRecords(currentRecords);
-  renderJobsTable(filteredRecords);
-  renderTimeline(filteredRecords);
-  }
+      const filteredRecords = filterRecords(currentRecords);
+      renderJobsTable(filteredRecords);
+      renderTimeline(filteredRecords);
+    }
 
     // Render contracts table
     function renderJobsTable(records) {
@@ -1284,279 +1187,149 @@ function showCampaignJobs(campaignId, campaignName) {
     }
 
     // Render timeline view using filtered records
-    // Render timeline view using filtered records
-// Simpler approach to timeline rendering with text positioned near Today
-function renderTimeline(records) {
-  // Use default values since timeline controls were removed
-  const TODAY = new Date();
-  TODAY.setHours(0, 0, 0, 0);
-  const timelineStart = new Date(TODAY);
-  timelineStart.setMonth(TODAY.getMonth() - 6);
-  timelineStart.setDate(1);
-  timelineStart.setHours(0, 0, 0, 0);
-  const timelineEnd = new Date(TODAY);
-  timelineEnd.setMonth(TODAY.getMonth() + 18);
-  timelineEnd.setDate(0);
-  timelineEnd.setHours(23, 59, 59, 999);
-  const MS_PER_DAY = 86400000;
-  const totalDays = Math.ceil((timelineEnd - timelineStart) / MS_PER_DAY);
-  const timelineWidth = totalDays * pxPerDay;
-  const ruler = document.getElementById('timeline-ruler');
-  const eventsDiv = document.getElementById('timeline-events');
-  ruler.innerHTML = "";
-  eventsDiv.innerHTML = "";
-  ruler.style.width = timelineWidth + "px";
-  eventsDiv.style.width = timelineWidth + "px";
-
-  let monthPointer = new Date(timelineStart);
-  while (monthPointer <= timelineEnd) {
-    const daysFromStart = Math.floor((monthPointer - timelineStart) / MS_PER_DAY);
-    const marker = document.createElement("div");
-    marker.className = "timeline-month";
-    marker.style.left = (daysFromStart * pxPerDay) + "px";
-    marker.innerHTML = '<span>' + monthPointer.toLocaleString('default', { month: 'short', year: 'numeric' }) + '</span>';
-    ruler.appendChild(marker);
-    monthPointer.setMonth(monthPointer.getMonth() + 1);
-  }
-
-  const todayOffset = Math.floor((TODAY - timelineStart) / MS_PER_DAY) * pxPerDay;
-  if (todayOffset >= 0 && todayOffset <= timelineWidth) {
-    const todayMarker = document.createElement("div");
-    todayMarker.className = "timeline-today";
-    todayMarker.style.left = todayOffset + "px";
-    eventsDiv.appendChild(todayMarker);
-  }
-
-  // Organize records into lanes to avoid overlap
-  const lanes = [];
-  records.sort((a, b) => a.firstOnAir - b.firstOnAir);
-  records.forEach(record => {
-    const { firstOnAir, contractEnd } = record;
-    if (!firstOnAir || !contractEnd) return;
-    if (contractEnd < timelineStart || firstOnAir > timelineEnd) return;
-    let laneIndex = 0;
-    let placed = false;
-    while (!placed) {
-      if (!lanes[laneIndex]) {
-        lanes[laneIndex] = [];
-        placed = true;
-      } else {
-        const overlaps = lanes[laneIndex].some(existingRecord => {
-          return (firstOnAir <= existingRecord.contractEnd && contractEnd >= existingRecord.firstOnAir);
-        });
-        if (!overlaps) {
-          placed = true;
-        } else {
-          laneIndex++;
+    function renderTimeline(records) {
+      // Use default values since timeline controls were removed
+      const TODAY = new Date();
+      TODAY.setHours(0, 0, 0, 0);
+      const timelineStart = new Date(TODAY);
+      timelineStart.setMonth(TODAY.getMonth() - 6);
+      timelineStart.setDate(1);
+      timelineStart.setHours(0, 0, 0, 0);
+      const timelineEnd = new Date(TODAY);
+      timelineEnd.setMonth(TODAY.getMonth() + 18);
+      timelineEnd.setDate(0);
+      timelineEnd.setHours(23, 59, 59, 999);
+      const MS_PER_DAY = 86400000;
+      const totalDays = Math.ceil((timelineEnd - timelineStart) / MS_PER_DAY);
+      const timelineWidth = totalDays * pxPerDay;
+      const ruler = document.getElementById('timeline-ruler');
+      const eventsDiv = document.getElementById('timeline-events');
+      ruler.innerHTML = "";
+      eventsDiv.innerHTML = "";
+      ruler.style.width = timelineWidth + "px";
+      eventsDiv.style.width = timelineWidth + "px";
+      let monthPointer = new Date(timelineStart);
+      while (monthPointer <= timelineEnd) {
+        const daysFromStart = Math.floor((monthPointer - timelineStart) / MS_PER_DAY);
+        const marker = document.createElement("div");
+        marker.className = "timeline-month";
+        marker.style.left = (daysFromStart * pxPerDay) + "px";
+        marker.innerHTML = '<span>' + monthPointer.toLocaleString('default', { month: 'short', year: 'numeric' }) + '</span>';
+        ruler.appendChild(marker);
+        monthPointer.setMonth(monthPointer.getMonth() + 1);
+      }
+      const todayOffset = Math.floor((TODAY - timelineStart) / MS_PER_DAY) * pxPerDay;
+      if (todayOffset >= 0 && todayOffset <= timelineWidth) {
+        const todayMarker = document.createElement("div");
+        todayMarker.className = "timeline-today";
+        todayMarker.style.left = todayOffset + "px";
+        eventsDiv.appendChild(todayMarker);
+      }
+      // Organize records into lanes to avoid overlap
+      const lanes = [];
+      records.sort((a, b) => a.firstOnAir - b.firstOnAir);
+      records.forEach(record => {
+        const { firstOnAir, contractEnd } = record;
+        if (!firstOnAir || !contractEnd) return;
+        if (contractEnd < timelineStart || firstOnAir > timelineEnd) return;
+        let laneIndex = 0;
+        let placed = false;
+        while (!placed) {
+          if (!lanes[laneIndex]) {
+            lanes[laneIndex] = [];
+            placed = true;
+          } else {
+            const overlaps = lanes[laneIndex].some(existingRecord => {
+              return (firstOnAir <= existingRecord.contractEnd && contractEnd >= existingRecord.firstOnAir);
+            });
+            if (!overlaps) {
+              placed = true;
+            } else {
+              laneIndex++;
+            }
+          }
+          if (placed) {
+            lanes[laneIndex].push(record);
+          }
         }
-      }
-      if (placed) {
-        lanes[laneIndex].push(record);
-      }
+        record.lane = laneIndex;
+      });
+      records.forEach(record => {
+        if (record.lane === undefined) return;
+        const { firstOnAir, contractEnd, lane } = record;
+        if (!firstOnAir || !contractEnd) return;
+        const visibleStart = firstOnAir < timelineStart ? timelineStart : firstOnAir;
+        const visibleEnd = contractEnd > timelineEnd ? timelineEnd : contractEnd;
+        const leftPx = Math.floor((visibleStart - timelineStart) / MS_PER_DAY) * pxPerDay;
+        const widthPx = Math.max(Math.ceil((visibleEnd - visibleStart) / MS_PER_DAY) * pxPerDay, 100);
+        const isActive = firstOnAir <= TODAY && contractEnd >= TODAY;
+        const isExpiringSoon = isActive && contractEnd <= new Date(TODAY.getTime() + 30 * MS_PER_DAY);
+        const isExpired = contractEnd < TODAY;
+        const block = document.createElement("div");
+        block.className = "timeline-event";
+        if (isExpiringSoon) block.classList.add("timeline-event-expiring");
+        if (isExpired) block.classList.add("timeline-event-expired");
+        if (isActive && !isExpiringSoon) block.classList.add("timeline-event-active");
+        block.style.left = leftPx + "px";
+        block.style.width = widthPx + "px";
+        block.style.top = (lane * 35 + 10) + "px";
+        block.style.height = "24px";
+        block.style.padding = "2px 4px";
+        block.innerHTML = '<div class="event-title">' + record.jobName + '</div>' +
+                          '<div class="event-dates">' + formatStandardDate(record.firstOnAir) + ' - ' + formatStandardDate(record.contractEnd) + '</div>';
+        block.onclick = () => {
+          showJobDetails(record.id);
+        };
+        eventsDiv.appendChild(block);
+      });
+      const laneCount = lanes.length;
+      eventsDiv.style.height = Math.max(laneCount * 35 + 50, 200) + "px";
+      const containerEl = document.getElementById('timeline-container');
+      containerEl.scrollLeft = todayOffset - (containerEl.clientWidth / 2);
     }
-    record.lane = laneIndex;
-  });
-
-  records.forEach(record => {
-    if (record.lane === undefined) return;
-    const { firstOnAir, contractEnd, lane } = record;
-    if (!firstOnAir || !contractEnd) return;
-    const visibleStart = firstOnAir < timelineStart ? timelineStart : firstOnAir;
-    const visibleEnd = contractEnd > timelineEnd ? timelineEnd : contractEnd;
-    const leftPx = Math.floor((visibleStart - timelineStart) / MS_PER_DAY) * pxPerDay;
-    const widthPx = Math.max(Math.ceil((visibleEnd - visibleStart) / MS_PER_DAY) * pxPerDay, 100);
-    const isActive = firstOnAir <= TODAY && contractEnd >= TODAY;
-    const isExpiringSoon = isActive && contractEnd <= new Date(TODAY.getTime() + 30 * MS_PER_DAY);
-    const isExpired = contractEnd < TODAY;
-
-    // Create the event block
-    const block = document.createElement("div");
-    block.className = "timeline-event";
-    if (isExpiringSoon) block.classList.add("timeline-event-expiring");
-    if (isExpired) block.classList.add("timeline-event-expired");
-    if (isActive && !isExpiringSoon) block.classList.add("timeline-event-active");
-    block.style.left = leftPx + "px";
-    block.style.width = widthPx + "px";
-    block.style.top = (lane * 35 + 10) + "px";
-    block.style.height = "24px";
-
-    // Calculate text positioning
-    let textPosition = "left";
-    let textPadding = "8px";
-
-    // If the event spans across today, position text near today
-    if (visibleStart <= TODAY && visibleEnd >= TODAY) {
-      // Calculate position of today within the event block
-      const todayRelativePosition = todayOffset - leftPx;
-
-      // Set text alignment based on position
-      if (todayRelativePosition < 0.2 * widthPx) {
-        // Today is near the left edge
-        textPosition = "left";
-        textPadding = "8px";
-      } else if (todayRelativePosition > 0.8 * widthPx) {
-        // Today is near the right edge
-        textPosition = "right";
-        textPadding = "8px";
-      } else {
-        // Today is in the middle portion
-        // Position the text at today
-        textPosition = "left";
-        textPadding = todayRelativePosition + "px";
-      }
-    } else if (visibleEnd < TODAY) {
-      // Event ends before today - align to right
-      textPosition = "right";
-      textPadding = "8px";
-    } else {
-      // Event starts after today - align to left
-      textPosition = "left";
-      textPadding = "8px";
-    }
-
-    // Apply text positioning
-    block.style.textAlign = textPosition;
-    if (textPosition === "left") {
-      block.style.paddingLeft = textPadding;
-      block.style.paddingRight = "0";
-    } else {
-      block.style.paddingRight = textPadding;
-      block.style.paddingLeft = "0";
-    }
-
-    // Create and add content
-    block.innerHTML = '<div class="event-title">' + record.jobName + '</div>' +
-                      '<div class="event-dates">' + formatStandardDate(record.firstOnAir) +
-                      ' - ' + formatStandardDate(record.contractEnd) + '</div>';
-
-    // Add click handler
-    block.onclick = () => {
-      showJobDetails(record.id);
-    };
-
-    eventsDiv.appendChild(block);
-  });
-
-  const laneCount = lanes.length;
-  eventsDiv.style.height = Math.max(laneCount * 35 + 50, 200) + "px";
-
-  // Center on today automatically after rendering
-  const containerEl = document.getElementById('timeline-container');
-  containerEl.scrollLeft = todayOffset - (containerEl.clientWidth / 2);
-
-  // Double-check centering after a short delay
-  setTimeout(() => {
-    containerEl.scrollLeft = todayOffset - (containerEl.clientWidth / 2);
-  }, 100);
-}
-
-
-// Add these CSS rules to customize the text positioning
-function addCustomTimelineStyles() {
-  const styleElement = document.createElement('style');
-  styleElement.textContent = `
-    .timeline-event {
-      position: absolute;
-      overflow: visible !important; /* Allow text to overflow */
-      white-space: nowrap;
-    }
-
-    .timeline-event .event-title {
-      font-weight: bold;
-      white-space: nowrap;
-      font-size: 11px;
-      position: relative;
-    }
-
-    .timeline-event .event-dates {
-      font-size: 9px;
-      opacity: 0.9;
-      margin-top: 2px;
-    }
-  `;
-  document.head.appendChild(styleElement);
-}
 
     // Load Airtable records and render table/timeline
-    // Update loadCalendar to ensure the centering happens after initial render
-async function loadCalendar() {
-  const container = document.getElementById('calendarTableContainer');
-  container.innerHTML = '<p>Loading contracts...</p>';
-  try {
-    if (currentRecords.length === 0) {
-      const data = await fetchData('fetchJobs');
-      if (data.error || !data.records) {
-        container.innerHTML = '<p class="error">Error loading contracts: ' + (data.error || 'Unknown error') + '</p>';
-        return;
-      }
-
-      // Store raw records and process them
-      rawAirtableRecords = data.records;
-      debug(`Received ${rawAirtableRecords.length} raw records from Airtable`);
-
-      currentRecords = processRecords(rawAirtableRecords);
-      const advertisers = extractAdvertisers();
-      updateAdvertiserDropdowns(advertisers);
-    }
-    const filteredRecords = filterRecords(currentRecords);
-    renderJobsTable(filteredRecords);
-    renderTimeline(filteredRecords);
-
-    // Double-check centering after a short delay to ensure the DOM is fully rendered
-    setTimeout(() => {
-      const containerEl = document.getElementById('timeline-container');
-      const todayMarker = containerEl.querySelector('.timeline-today');
-      if (todayMarker) {
-        containerEl.scrollLeft = todayMarker.offsetLeft - (containerEl.clientWidth / 2);
-      }
-    }, 100);
-  } catch (err) {
-    container.innerHTML = '<p class="error">Error loading contracts: ' + err.message + '</p>';
-    debug(`Error in loadCalendar: ${err.message}`);
-  }
-}
-
-// Add these CSS rules for better text styling
-function addTimelineTextStyles() {
-  const styleElement = document.createElement('style');
-  styleElement.textContent = `
-    .timeline-event {
-      position: absolute;
-      overflow: visible;
-      white-space: nowrap;
-      box-sizing: border-box;
-      border-radius: 4px;
-    }
-
-    .timeline-event .event-title {
-      font-weight: bold;
-      font-size: 11px;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-
-    .timeline-event .event-dates {
-      font-size: 9px;
-      opacity: 0.8;
-      margin-top: 2px;
-    }
-  `;
-  document.head.appendChild(styleElement);
-}
-
-    // Load campaigns
-    async function loadCampaigns() {
-      const container = document.getElementById('campaignGalleryContent');
-      container.innerHTML = '<p>Loading campaigns...</p>';
+    async function loadCalendar() {
+      const container = document.getElementById('calendarTableContainer');
+      container.innerHTML = '<p>Loading contracts...</p>';
       try {
-        document.getElementById('campaignJobsContainer').style.display = 'none';
+        if (currentRecords.length === 0) {
+          const data = await fetchData('fetchJobs');
+          if (data.error || !data.records) {
+            container.innerHTML = '<p class="error">Error loading contracts: ' + (data.error || 'Unknown error') + '</p>';
+            return;
+          }
+
+          // Store raw records and process them
+          rawAirtableRecords = data.records;
+          debug(`Received ${rawAirtableRecords.length} raw records from Airtable`);
+
+          currentRecords = processRecords(rawAirtableRecords);
+          const advertisers = extractAdvertisers();
+          updateAdvertiserDropdowns(advertisers);
+        }
+        const filteredRecords = filterRecords(currentRecords);
+        renderJobsTable(filteredRecords);
+        renderTimeline(filteredRecords);
+      } catch (err) {
+        container.innerHTML = '<p class="error">Error loading contracts: ' + err.message + '</p>';
+        debug(`Error in loadCalendar: ${err.message}`);
+      }
+    }
+
+    // Load products
+    async function loadProducts() {
+      const container = document.getElementById('productGalleryContent');
+      container.innerHTML = '<p>Loading products...</p>';
+      try {
+        document.getElementById('productJobsContainer').style.display = 'none';
         if (currentRecords.length > 0) {
-          renderCampaignsFromRecords();
+          renderProductsFromRecords();
           return;
         }
         const data = await fetchData('fetchJobs');
         if (data.error || !data.records) {
-          container.innerHTML = '<p class="error">Error loading campaigns: ' + (data.error || 'Unknown error') + '</p>';
+          container.innerHTML = '<p class="error">Error loading products: ' + (data.error || 'Unknown error') + '</p>';
           return;
         }
 
@@ -1570,257 +1343,110 @@ function addTimelineTextStyles() {
         } catch (error) {
           debug(`Error during advertiser filter update: ${error.message}`);
         }
-        renderCampaignsFromRecords();
+        renderProductsFromRecords();
       } catch (err) {
-        container.innerHTML = '<p class="error">Error loading campaigns: ' + err.message + '</p>';
-        debug(`Error in loadCampaigns: ${err.message}`);
+        container.innerHTML = '<p class="error">Error loading products: ' + err.message + '</p>';
+        debug(`Error in loadProducts: ${err.message}`);
       }
     }
 
-    function addAdvancedTimelineStyles() {
-  const styleElement = document.createElement('style');
-  styleElement.textContent = `
-    .timeline-event {
-      position: absolute;
-      overflow: visible !important;
-      white-space: nowrap;
-      background: transparent !important;
-      border: none !important;
-      box-shadow: none !important;
-      padding: 0 !important;
-    }
+    // Render products from records (for Product Gallery)
+    function renderProductsFromRecords() {
+      const container = document.getElementById('productGalleryContent');
+      const productFilter = document.getElementById('productFilter').value.trim().toLowerCase();
+      const advertiserFilter = document.getElementById('productAdvertiserFilter').value.trim().toLowerCase();
 
-    .timeline-event-bar {
-      border-radius: 3px;
-    }
+      debug(`Rendering products with filters: ${productFilter}, ${advertiserFilter}`);
 
-    .timeline-event.timeline-event-active .timeline-event-bar {
-      background-color: #2196f3;
-    }
+      // Group records by product
+      const products = {};
 
-    .timeline-event.timeline-event-expiring .timeline-event-bar {
-      background-color: #ffc107;
-    }
+      currentRecords.forEach(record => {
+        // Skip records without product
+        if (!record.product) return;
 
-    .timeline-event.timeline-event-expired .timeline-event-bar {
-      background-color: #9e9e9e;
-    }
+        const productName = record.product;
 
-    .timeline-event-label {
-      position: absolute;
-      top: -15px;
-      white-space: nowrap;
-      z-index: 5;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 2px 4px;
-      border-radius: 3px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
+        // Apply filters
+        if (productFilter && !String(productName).toLowerCase().includes(productFilter)) return;
+        if (advertiserFilter && record.product.toLowerCase() !== advertiserFilter.toLowerCase()) return;
 
-    .timeline-event .event-title {
-      font-weight: bold;
-      font-size: 11px;
-    }
-
-    .timeline-event .event-dates {
-      font-size: 9px;
-      opacity: 0.9;
-      margin-top: 2px;
-    }
-
-    .timeline-connector {
-      pointer-events: none;
-    }
-
-    .timeline-event.timeline-event-active .timeline-event-label {
-      border-left: 3px solid #2196f3;
-    }
-
-    .timeline-event.timeline-event-expiring .timeline-event-label {
-      border-left: 3px solid #ffc107;
-    }
-
-    .timeline-event.timeline-event-expired .timeline-event-label {
-      border-left: 3px solid #9e9e9e;
-    }
-  `;
-  document.head.appendChild(styleElement);
-}
-
-    // Render campaigns from records (Campaign Gallery) - FIXED
-    // Fix for Campaign Gallery rendering
-function renderCampaignsFromRecords() {
-  const container = document.getElementById('campaignGalleryContent');
-  const campaignNumberFilter = document.getElementById('campaignJobNumberFilter').value.trim().toLowerCase();
-  const campaignNameFilter = document.getElementById('campaignJobNameFilter').value.trim().toLowerCase();
-  const advertiserFilter = document.getElementById('campaignAdvertiserFilter').value.trim().toLowerCase();
-
-  debug(`Rendering campaigns with filters: ${campaignNumberFilter}, ${campaignNameFilter}, ${advertiserFilter}`);
-
-  // Group records by campaign with proper campaign name extraction
-  const campaigns = {};
-
-  currentRecords.forEach(record => {
-    // Skip records without proper campaign info
-    if (!record.campaignId && !record.campaignName && !record.product) return;
-
-    // Get the best available campaign name and ID
-    let campaignId = '';
-    let campaignName = '';
-    let campaignObj = null;
-
-    // First try to use fields from linked Campaign table record
-    if (record.rawFields && record.rawFields["Campaign"] &&
-        Array.isArray(record.rawFields["Campaign"]) &&
-        record.rawFields["Campaign"].length > 0) {
-
-      const campaignRecord = record.rawFields["Campaign"][0];
-
-      if (typeof campaignRecord === 'object' && campaignRecord.id) {
-        campaignId = campaignRecord.id;
-        campaignObj = campaignRecord;
-
-        if (campaignRecord.fields && campaignRecord.fields["Name"]) {
-          campaignName = campaignRecord.fields["Name"];
-          debug(`Found campaign name '${campaignName}' from record fields`);
+        // Create or update the product entry
+        if (!products[productName]) {
+          products[productName] = {
+            name: productName,
+            jobs: []
+          };
         }
-      } else if (typeof campaignRecord === 'string') {
-        // It's just a string ID
-        campaignId = campaignRecord;
-      }
-    }
 
-    // If we already have this campaign from another record, use the established name
-    if (campaignId && campaigns[campaignId] && campaigns[campaignId].name) {
-      campaignName = campaigns[campaignId].name;
-    }
-
-    // Fall back to other fields if needed
-    if (!campaignId) {
-      campaignId = record.campaignId || record.product || 'unknown';
-    }
-
-    if (!campaignName) {
-      // Try campaign name from the processed record
-      if (record.campaignName) {
-        campaignName = record.campaignName;
-      }
-      // Fall back to product name
-      else if (record.product) {
-        campaignName = record.product + " Campaign";
-      }
-      // Last resort
-      else {
-        campaignName = "Campaign " + campaignId;
-      }
-    }
-
-    // Apply filters
-    if (campaignNumberFilter && !String(campaignId).toLowerCase().includes(campaignNumberFilter)) return;
-    if (campaignNameFilter && !String(campaignName).toLowerCase().includes(campaignNameFilter)) return;
-    if (advertiserFilter && record.product && record.product.toLowerCase() !== advertiserFilter.toLowerCase()) return;
-
-    // Create or update the campaign entry
-    if (!campaigns[campaignId]) {
-      campaigns[campaignId] = {
-        id: campaignId,
-        name: campaignName,
-        jobs: [],
-        product: record.product || 'Unknown',
-        campaignObject: campaignObj
-      };
-    }
-
-    campaigns[campaignId].jobs.push(record);
-  });
-
-  const campaignArray = Object.values(campaigns);
-  debug(`Found ${campaignArray.length} unique campaigns after filtering`);
-
-  if (campaignArray.length === 0) {
-    container.innerHTML = '<p>No campaigns found matching your criteria.</p>';
-    return;
-  }
-
-  let html = '';
-
-  // Process each campaign into a card with proper escaping
-  campaignArray.forEach(campaign => {
-    const jobCount = campaign.jobs.length;
-    const activeJobs = campaign.jobs.filter(job =>
-      job.firstOnAir <= TODAY && job.contractEnd >= TODAY
-    ).length;
-
-    // Properly escape the campaign name for the onClick attribute
-    const escapedName = String(campaign.name).replace(/'/g, "\\'").replace(/"/g, '\\"');
-    const escapedId = String(campaign.id).replace(/'/g, "\\'").replace(/"/g, '\\"');
-
-    html += `
-      <div class="campaign-card" onclick="showCampaignJobs('${escapedId}', '${escapedName}')">
-        <div class="card-title">${String(campaign.name)}</div>
-        <div class="card-info">Client: ${String(campaign.product || 'Unknown')}</div>
-        <div class="card-info">Jobs: ${jobCount} (${activeJobs} active)</div>
-      </div>
-    `;
-  });
-
-  container.innerHTML = html;
-}
-
-    // Show jobs for a campaign
-    function showCampaignJobs(campaignId, campaignName) {
-  selectedCampaign = campaignId;
-  document.getElementById('campaignGalleryContent').style.display = 'none';
-  document.getElementById('campaignJobsContainer').style.display = 'block';
-
-  // Safely set the campaign title
-  const titleElement = document.getElementById('selectedCampaignTitle');
-  titleElement.textContent = 'Campaign: ' + campaignName;
-
-  debug(`Showing jobs for campaign: ${campaignId} (${campaignName})`);
-
-  // Get jobs for the selected campaign with more flexible matching
-  const campaignJobs = currentRecords.filter(record => {
-    // Check for direct campaignId match
-    if (record.campaignId === campaignId) return true;
-
-    // Check in the Campaign linked field if available
-    if (record.rawFields && record.rawFields["Campaign"] &&
-        Array.isArray(record.rawFields["Campaign"])) {
-
-      const found = record.rawFields["Campaign"].some(campaign => {
-        if (typeof campaign === 'string') {
-          return campaign === campaignId;
-        } else if (campaign && campaign.id) {
-          return campaign.id === campaignId;
-        }
-        return false;
+        products[productName].jobs.push(record);
       });
 
-      if (found) return true;
+      const productArray = Object.values(products);
+      debug(`Found ${productArray.length} unique products after filtering`);
+
+      if (productArray.length === 0) {
+        container.innerHTML = '<p>No products found matching your criteria.</p>';
+        return;
+      }
+
+      let html = '';
+
+      // Process each product into a card
+      productArray.forEach(product => {
+        const jobCount = product.jobs.length;
+        const activeJobs = product.jobs.filter(job =>
+          job.firstOnAir <= TODAY && job.contractEnd >= TODAY
+        ).length;
+
+        // Properly escape the product name for the onClick attribute
+        const escapedName = String(product.name).replace(/'/g, "\\'").replace(/"/g, '\\"');
+
+        html += `
+          <div class="product-card" onclick="showProductJobs('${escapedName}')">
+            <div class="card-title">${String(product.name)}</div>
+            <div class="card-info">Jobs: ${jobCount} (${activeJobs} active)</div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
     }
 
-    // Fall back to product match as last resort
-    return record.product === campaignId;
-  });
+    // Show jobs for a product
+    function showProductJobs(productName) {
+      selectedProduct = productName;
+      document.getElementById('productGalleryContent').style.display = 'none';
+      document.getElementById('productJobsContainer').style.display = 'block';
 
-  debug(`Found ${campaignJobs.length} jobs for campaign ${campaignId}`);
+      // Safely set the product title
+      const titleElement = document.getElementById('selectedProductTitle');
+      titleElement.textContent = 'Product: ' + productName;
 
-  renderCampaignJobs(campaignJobs);
-}
+      debug(`Showing jobs for product: ${productName}`);
 
-    // Back to campaigns view
-    function backToCampaigns() {
-      document.getElementById('campaignGalleryContent').style.display = 'grid';
-      document.getElementById('campaignJobsContainer').style.display = 'none';
-      selectedCampaign = null;
+      // Get jobs for the selected product
+      const productJobs = currentRecords.filter(record =>
+        record.product === productName
+      );
+
+      debug(`Found ${productJobs.length} jobs for product ${productName}`);
+
+      renderProductJobs(productJobs);
     }
 
-    // Render campaign jobs table with sortable columns
-    function renderCampaignJobs(jobs) {
-      const container = document.getElementById('campaignJobsTableContainer');
+    // Back to products view
+    function backToProducts() {
+      document.getElementById('productGalleryContent').style.display = 'grid';
+      document.getElementById('productJobsContainer').style.display = 'none';
+      selectedProduct = null;
+    }
+
+    // Render product jobs table with sortable columns
+    function renderProductJobs(jobs) {
+      const container = document.getElementById('productJobsTableContainer');
       if (!jobs || jobs.length === 0) {
-        container.innerHTML = '<p>No jobs found for this campaign.</p>';
+        container.innerHTML = '<p>No jobs found for this product.</p>';
         return;
       }
       let sortedJobs = [...jobs];
@@ -1837,9 +1463,6 @@ function renderCampaignsFromRecords() {
       let html = '<table><thead><tr>' +
         '<th data-sort="jobNumber" onclick="sortTable(\'jobNumber\')" class="' + (currentSortField === 'jobNumber' ? 'sort-' + currentSortDirection : '') + '">Job Number</th>' +
         '<th data-sort="jobName" onclick="sortTable(\'jobName\')" class="' + (currentSortField === 'jobName' ? 'sort-' + currentSortDirection : '') + '">Job Name</th>' +
-        '<th data-sort="performerName" onclick="sortTable(\'performerName\')" class="' + (currentSortField === 'performerName' ? 'sort-' + currentSortDirection : '') + '">Performer</th>' +
-        '<th data-sort="talentAgencyName" onclick="sortTable(\'talentAgencyName\')" class="' + (currentSortField === 'talentAgencyName' ? 'sort-' + currentSortDirection : '') + '">Agency</th>' +
-        '<th data-sort="product" onclick="sortTable(\'product\')" class="' + (currentSortField === 'product' ? 'sort-' + currentSortDirection : '') + '">Product</th>' +
         '<th data-sort="type" onclick="sortTable(\'type\')" class="' + (currentSortField === 'type' ? 'sort-' + currentSortDirection : '') + '">Type</th>' +
         '<th data-sort="firstOnAir" onclick="sortTable(\'firstOnAir\')" class="' + (currentSortField === 'firstOnAir' ? 'sort-' + currentSortDirection : '') + '">First On Air</th>' +
         '<th data-sort="contractEnd" onclick="sortTable(\'contractEnd\')" class="' + (currentSortField === 'contractEnd' ? 'sort-' + currentSortDirection : '') + '">Contract Ends</th>' +
@@ -1849,9 +1472,6 @@ function renderCampaignsFromRecords() {
         html += '<tr>' +
           '<td><a href="javascript:void(0)" onclick="showJobDetails(\'' + job.id + '\')">' + job.jobNumber + '</a></td>' +
           '<td><a href="javascript:void(0)" onclick="showJobDetails(\'' + job.id + '\')">' + job.jobName + '</a></td>' +
-          '<td>' + (job.performerName || 'N/A') + '</td>' +
-          '<td>' + (job.talentAgencyName || 'N/A') + '</td>' +
-          '<td>' + (job.product || 'Unknown') + '</td>' +
           '<td>' + (job.type || 'N/A') + '</td>' +
           '<td>' + formatFriendlyDate(job.firstOnAir) + '</td>' +
           '<td>' + formatFriendlyDate(job.contractEnd) + '</td>' +
@@ -1890,20 +1510,25 @@ function renderCampaignsFromRecords() {
       }
     }
 
-    // Render jobs gallery like the calendar view
+    // Render jobs gallery
     function renderJobsGallery() {
       const tableContainer = document.querySelector('#jobsGalleryContent .jobs-table-wrapper');
       const countDisplay = document.querySelector('#jobsGalleryContent .count-display');
 
       debug(`Rendering jobs gallery with ${currentRecords.length} records`);
 
-      // Apply basic filtering
+      // Apply filters
       const jobNumberFilter = document.getElementById('jobsGalleryNumberFilter').value.trim().toLowerCase();
       const jobNameFilter = document.getElementById('jobsGalleryNameFilter').value.trim().toLowerCase();
       const advertiserFilter = document.getElementById('jobsGalleryAdvertiserFilter').value.trim().toLowerCase();
 
-      // Filter jobs based on user inputs
-      let filteredJobs = currentRecords.filter(job => {
+      // Start with records that have 'EG' prefix
+      let filteredJobs = currentRecords.filter(job =>
+        String(job.jobNumber || '').startsWith('EG')
+      );
+
+      // Apply additional user filters
+      filteredJobs = filteredJobs.filter(job => {
         if (jobNumberFilter && !String(job.jobNumber || '').toLowerCase().includes(jobNumberFilter)) return false;
         if (jobNameFilter && !String(job.jobName || '').toLowerCase().includes(jobNameFilter)) return false;
         if (advertiserFilter && String(job.product || '').toLowerCase() !== advertiserFilter.toLowerCase()) return false;
@@ -1981,14 +1606,12 @@ function renderCampaignsFromRecords() {
       const viewId = activeView.id;
       if (viewId === 'calendarView') {
         loadCalendar();
-      } else if (viewId === 'campaignGallery') {
-        if (document.getElementById('campaignJobsContainer').style.display !== 'none') {
-          const campaignJobs = currentRecords.filter(record => {
-            return record.campaignId === selectedCampaign || record.product === selectedCampaign;
-          });
-          renderCampaignJobs(campaignJobs);
+      } else if (viewId === 'productGallery') {
+        if (document.getElementById('productJobsContainer').style.display !== 'none') {
+          const productJobs = currentRecords.filter(record => record.product === selectedProduct);
+          renderProductJobs(productJobs);
         } else {
-          renderCampaignsFromRecords();
+          renderProductsFromRecords();
         }
       } else if (viewId === 'jobsGallery') {
         renderJobsGallery();
@@ -2005,8 +1628,8 @@ function renderCampaignsFromRecords() {
         document.getElementById(targetView).classList.add('active');
         if (targetView === 'calendarView') {
           if (currentRecords.length === 0) loadCalendar();
-        } else if (targetView === 'campaignGallery') {
-          loadCampaigns();
+        } else if (targetView === 'productGallery') {
+          loadProducts();
         } else if (targetView === 'jobsGallery') {
           loadJobsGallery();
         }
@@ -2053,21 +1676,6 @@ function renderCampaignsFromRecords() {
           applyTableFilters();
         });
       }
-
-      // Call this function when the page loads
-window.addEventListener('load', function() {
-  addCustomTimelineStyles();
-});
-
-      // Call this function when the page loads
-window.addEventListener('load', function() {
-  addAdvancedTimelineStyles();
-});
-
-// Call this once when the page loads
-window.addEventListener('load', function() {
-  addTimelineTextStyles();
-});
 
       // Close the modal if clicking outside
       window.addEventListener('click', function(event) {
