@@ -1,1010 +1,697 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Job Details</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Details - 21 Column View</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f9f9f9;
-    }
-    header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .back-btn {
-      margin-bottom: 20px;
-      padding: 8px 16px;
-      background: #333;
-      color: #fff;
-      border: none;
-      cursor: pointer;
-    }
-    .view-buttons {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 20px;
-      gap: 10px;
-    }
-    .view-btn {
-      padding: 10px 20px;
-      background: #007bff;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    .view-btn.active {
-      background: #0056b3;
-    }
-    .view-btn:hover {
-      background: #0069d9;
-    }
-    /* Scrollable table container */
-    .table-container {
-      max-width: 100%;
-      overflow-x: auto; /* Horizontal scroll if needed */
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-    }
-    table, th, td {
-      border: 1px solid #ccc;
-    }
-    th, td {
-      padding: 8px;
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      background-color: #f2f2f2;
-      cursor: pointer;
-    }
-    th.sort-asc::after {
-      content: " ▲";
-    }
-    th.sort-desc::after {
-      content: " ▼";
-    }
-    .talent-table th, .talent-table td {
-      white-space: nowrap;  /* Prevent wrapping for horizontal scroll */
-    }
-    .badge {
-      padding: 3px 8px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: bold;
-      color: white;
-    }
-    .badge-freelance {
-      background-color: #17a2b8;
-    }
-    .badge-agency {
-      background-color: #6f42c1;
-    }
-    .badge-union {
-      background-color: #fd7e14;
-    }
-    .doc-link {
-      color: #007bff;
-      text-decoration: none;
-    }
-    .doc-link:hover {
-      text-decoration: underline;
-    }
-    .group-header {
-      background-color: #eaeaea;
-      font-weight: bold;
-    }
-    .button-group {
-      margin-bottom: 15px;
-    }
-    .button-group button {
-      padding: 5px 10px;
-      margin-right: 5px;
-      border: 1px solid #ddd;
-      background: #f5f5f5;
-      cursor: pointer;
-    }
-    .button-group button.active {
-      background: #007bff;
-      color: white;
-      border-color: #0056b3;
-    }
-    .tab-container {
-      margin-top: 20px;
-    }
-    .tabs {
-      display: flex;
-      border-bottom: 1px solid #ccc;
-      margin-bottom: 15px;
-    }
-    .tab {
-      padding: 8px 15px;
-      margin-right: 5px;
-      cursor: pointer;
-      border: 1px solid transparent;
-      border-bottom: none;
-    }
-    .tab.active {
-      background: #fff;
-      border-color: #ccc;
-      border-radius: 4px 4px 0 0;
-      margin-bottom: -1px;
-    }
-    .tab-content {
-      display: none;
-    }
-    .tab-content.active {
-      display: block;
-    }
+    /* Basic Reset & Body */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 15px; background-color: #f8f9fa; color: #212529; line-height: 1.6; }
+    .container { max-width: 95%; /* Wider container for more columns */ margin: 0 auto; padding: 0 10px; }
+
+    /* Header */
+    header { text-align: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #dee2e6; }
+    header h1 { font-size: 2rem; color: #343a40; margin-bottom: 5px; }
+    header h2 { font-size: 1.4rem; color: #495057; font-weight: 500; margin-bottom: 10px; word-wrap: break-word; }
+    #jobInfo p { color: #6c757d; margin-bottom: 10px; }
+    #jobDates span { margin: 0 8px; color: #495057; font-size: 0.9rem; display: inline-block; margin-bottom: 5px; }
+    #jobDates strong { color: #343a40; }
+
+    /* Buttons */
+    .btn { display: inline-block; font-weight: 400; color: #fff; text-align: center; vertical-align: middle; cursor: pointer; user-select: none; background-color: #007bff; border: 1px solid #007bff; padding: 0.4rem 0.8rem; font-size: 0.9rem; line-height: 1.5; border-radius: 0.25rem; transition: all 0.15s ease-in-out; text-decoration: none; }
+    .btn:hover { background-color: #0056b3; border-color: #0056b3; }
+    .btn-light { color: #212529; background-color: #f8f9fa; border-color: #dee2e6; }
+    .btn-light:hover { background-color: #e2e6ea; border-color: #dae0e5; }
+    .btn.active { background-color: #0056b3; border-color: #0056b3; color: #fff; }
+    .back-btn { background-color: #6c757d; border-color: #6c757d; margin-bottom: 15px; }
+    .back-btn:hover { background-color: #5a6268; border-color: #545b64; }
+    .view-buttons, .button-group { display: flex; justify-content: center; flex-wrap: wrap; margin-bottom: 15px; gap: 8px; }
+
+    /* Tables */
+    .table-container { width: 100%; overflow-x: auto; background-color: #fff; border: 1px solid #dee2e6; border-radius: 0.25rem; margin-bottom: 20px; box-shadow: 0 0.1rem 0.2rem rgba(0,0,0,0.05); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; /* Slightly smaller font */ }
+    th, td { padding: 0.5rem 0.7rem; /* Adjust padding */ text-align: left; vertical-align: top; border-top: 1px solid #dee2e6; white-space: nowrap; }
+    td { white-space: normal; word-break: break-word; }
+    th { background-color: #e9ecef; font-weight: 600; cursor: pointer; position: relative; }
+    tbody tr:hover { background-color: #f1f3f5; }
+    tbody tr:first-child td, tbody tr:first-child th { border-top: none; }
+
+    /* Sorting indicators */
+    th[data-sort]::after { content: ' \2195'; opacity: 0.3; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+    th.sort-asc::after { content: " \25B2"; opacity: 1; }
+    th.sort-desc::after { content: " \25BC"; opacity: 1; }
+
+    /* Grouping Header */
+    .group-header td { background-color: #d1ecf1; font-weight: bold; border-top: 2px solid #bee5eb; border-bottom: 1px solid #bee5eb; padding: 0.5rem 0.8rem; }
+
+    /* Links & Images */
+    .doc-link { color: #007bff; text-decoration: none; }
+    .doc-link:hover { text-decoration: underline; }
+    /* Headshot */
+    .headshot img { max-width: 100px; max-height: 100px; border-radius: 2%; vertical-align: middle; }
+
+    /* Tabs */
+    .tab-container { margin-top: 20px; background-color: #fff; border: 1px solid #dee2e6; border-radius: 0.25rem; padding: 15px; box-shadow: 0 0.1rem 0.2rem rgba(0,0,0,0.05); }
+    .tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid #dee2e6; margin-bottom: 15px; }
+    .tab { padding: 0.5rem 1rem; margin-right: 5px; margin-bottom: -1px; cursor: pointer; border: 1px solid transparent; border-bottom: none; border-radius: 0.25rem 0.25rem 0 0; color: #007bff; background-color: transparent; }
+    .tab:hover { background-color: #e9ecef; }
+    .tab.active { background-color: #fff; border-color: #dee2e6 #dee2e6 #fff; color: #495057; font-weight: 500; }
+    .tab-content { display: none; padding-top: 10px; }
+    .tab-content.active { display: block; }
 
     /* View modes */
-    .view-mode {
-      display: none;
-    }
-    .view-mode.active {
-      display: block;
-    }
+    .view-mode { display: none; }
+    .view-mode.active { display: block; }
 
-    #error {
-      color: red;
-      margin: 20px 0;
-      font-weight: bold;
-      display: none;
-    }
+    /* Error & Loading */
+    #messageArea { text-align: center; padding: 30px 15px; border-radius: 0.25rem; margin: 20px 0; }
+    #error { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; font-weight: bold; display: none; }
+    #loading { color: #004085; background-color: #cce5ff; border: 1px solid #b8daff; }
+    .loading-spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid rgba(0, 64, 133, 0.3); border-top-color: #004085; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Loading indicator */
-    .loading {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 200px;
-    }
-    .loading::after {
-      content: "";
-      width: 40px;
-      height: 40px;
-      border: 6px solid #f3f3f3;
-      border-top: 6px solid #3498db;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+    /* Summary Grid */
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .summary-box { background-color: #e9ecef; padding: 12px; border-radius: 0.25rem; text-align: center; }
+    .summary-box h3 { font-size: 0.8rem; color: #6c757d; margin-bottom: 5px; font-weight: 500; text-transform: uppercase; }
+    .summary-value { font-size: 1.25rem; font-weight: 600; color: #343a40; word-wrap: break-word; }
+    .summary-subtext { font-size: 0.75rem; color: #6c757d; margin-top: 3px; }
+
+    /* Details Tab Table */
+    #detailsTab table { margin-bottom: 0; }
+    #detailsTab th { background-color: transparent; width: 35%; font-weight: 500; border: none; padding: 0.5rem 0.8rem; }
+    #detailsTab td { border: none; padding: 0.5rem 0.8rem; }
+    #detailsTab tr { border-bottom: 1px solid #eee; }
+    #detailsTab tr:last-child { border-bottom: none; }
+
+    /* Documents Tab */
+    #documentsContent h3 { font-size: 1.1rem; margin: 15px 0 10px 0; padding-bottom: 5px; border-bottom: 1px solid #eee; }
+    #documentsContent h3:first-child { margin-top: 0; }
+    #documentsContent ul { list-style: none; padding-left: 0; }
+    #documentsContent li { margin-bottom: 8px; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .container { max-width: 100%; }
+        header h1 { font-size: 1.6rem; }
+        header h2 { font-size: 1.2rem; }
+        th, td { padding: 0.5rem; font-size: 0.8rem; }
+        .btn { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
     }
   </style>
 </head>
 <body>
-  <button class="back-btn" onclick="window.history.back()">Back</button>
+ <div class="container">
+  <a href="#" class="btn back-btn" onclick="window.history.back(); return false;">← Back</a>
 
   <header>
-    <h1>Job Tracker Details</h1>
+    <h1>Job Details</h1>
     <div id="jobInfo">
       <h2 id="jobName">Loading...</h2>
       <p id="jobNumber">Job #: Loading...</p>
-      <div>
-        <span>First On Air: <span id="firstOnAir">-</span></span> |
-        <span>Contract Ends: <span id="contractEnds">-</span></span> |
-        <span>Contract Term: <span id="contractTerm">-</span></span>
+      <div id="jobDates">
+        <span>Overall First On Air: <strong id="firstOnAir">-</strong></span>
+        <span>Overall Contract Ends: <strong id="contractEnds">-</strong></span>
       </div>
     </div>
   </header>
 
-  <!-- View Mode Buttons -->
   <div class="view-buttons">
-    <button id="tableViewBtn" class="view-btn active">View Table</button>
-    <button id="detailsViewBtn" class="view-btn">View Details</button>
+    <button id="tableViewBtn" class="btn btn-primary active">View Talent Records (21 Cols)</button>
+    <button id="detailsViewBtn" class="btn btn-primary">View Job Summary Tabs</button>
   </div>
 
-  <!-- Loading state -->
-  <div id="loading" class="loading"></div>
+  <div id="messageArea">
+      <div id="loading">Loading Job Details... <div class="loading-spinner"></div></div>
+      <div id="error" style="display: none;"></div>
+  </div>
 
-  <!-- Error message -->
-  <div id="error"></div>
 
-  <!-- Main content container -->
-  <div id="jobDetailsEl" style="display: none;">
+  <div id="contentArea" style="display: none;">
 
-    <!-- Table View Mode -->
     <div id="tableView" class="view-mode active">
       <div class="button-group">
-        <button id="groupByNone" class="active">No Grouping</button>
-        <button id="groupByType">Group by Type</button>
-        <button id="groupByAgency">Group by Agency</button>
+        <button class="btn btn-light active" data-group="none">No Grouping</button>
+        <button class="btn btn-light" data-group="type">Group by Record Type</button>
+        <button class="btn btn-light" data-group="agency">Group by Agency</button>
+        <button id="printCsvBtn" class="btn btn-secondary">Download CSV</button>
       </div>
 
       <div class="table-container">
-        <!-- 21-column header for the job record -->
         <table class="talent-table">
           <thead>
             <tr>
-              <th>Job Tracker Primary ID</th>
-              <th>Product</th>
-              <th>Name of Spot</th>
-              <th>Contract Term</th>
-              <th>First On Air</th>
-              <th>Contract Ends</th>
-              <th>Campaign Release/Usage</th>
-              <th>Campaign Media/Deliverables</th>
-              <th>Territory</th>
-              <th>Job No.</th>
-              <th>Type</th>
-              <th>Head Shot</th>
-              <th>Role</th>
-              <th>Contract / DOR</th>
-              <th>Job Summary</th>
-              <th>Contract Fee</th>
-              <th>Loading</th>
-              <th>Options</th>
-              <th>Rollover (inc VO)</th>
-              <th>Voiceover</th>
-              <th>NOTES Job Tracker</th>
+              <th data-sort="jobTrackerPrimaryID">Job Tracker Primary ID</th>
+              <th data-sort="jobSummaryData.product">Product</th> <th data-sort="jobSummaryData.jobName">Name of Spot</th> <th data-sort="contractTerm">Contract Term</th> <th data-sort="firstOnAir">First On Air</th> <th data-sort="contractEnd">Contract Ends</th> <th data-sort="jobSummaryData.campaignRelease">Campaign Release/Usage</th>
+              <th data-sort="jobSummaryData.campaignMedia">Campaign Media/Deliverables</th>
+              <th data-sort="jobSummaryData.territory">Territory</th>
+              <th data-sort="jobSummaryData.jobNumber">Job No.</th> <th data-sort="type">Type</th> <th class="headshot">Head Shot</th> <th data-sort="role">Role</th><th>Contract / DOR</th> <th>Job Summary Doc</th> <th data-sort="contractFee">Contract Fee</th> <th>Loading</th> <th>Options</th> <th>Rollover Fee</th> <th>Voiceover</th> <th data-sort="jobSummaryData.notesJobTracker">NOTES Job Tracker</th>
             </tr>
           </thead>
           <tbody id="talentTableBody">
-            <!-- The single row of job fields will go here -->
-          </tbody>
+            </tbody>
         </table>
       </div>
     </div>
 
-    <!-- Details View Mode -->
     <div id="detailsView" class="view-mode">
       <div class="tab-container">
         <div class="tabs">
-          <div class="tab active" data-tab="summary">Summary</div>
-          <div class="tab" data-tab="details">Job Details</div>
-          <div class="tab" data-tab="documents">Documents</div>
+          <div class="tab active" data-tab="summary">Overview</div>
+          <div class="tab" data-tab="details">Job Info</div>
+          <div class="tab" data-tab="documents">All Documents</div>
         </div>
 
-        <!-- Summary Tab -->
         <div id="summaryTab" class="tab-content active">
           <div class="summary-grid">
-            <div class="summary-box">
-              <h3>Total Talent</h3>
-              <div id="totalTalent" class="summary-value">-</div>
-            </div>
-            <div class="summary-box">
-              <h3>Contract Value</h3>
-              <div id="totalContractValue" class="summary-value">-</div>
-            </div>
-            <div class="summary-box">
-              <h3>Talent Types</h3>
-              <div id="talentTypes" class="summary-value">-</div>
-            </div>
-            <div class="summary-box">
-              <h3>Status</h3>
-              <div id="jobStatus" class="summary-value">-</div>
-              <div id="daysRemaining" class="summary-subtext">-</div>
-            </div>
+             <div class="summary-box"><h3>Job Number</h3><div id="summaryJobNumber" class="summary-value">-</div></div>
+             <div class="summary-box"><h3>Client / Advertiser</h3><div id="summaryClient" class="summary-value">-</div></div>
+             <div class="summary-box"><h3>Talent Records</h3><div id="totalTalent" class="summary-value">-</div></div>
+             <div class="summary-box"><h3>Total Fees</h3><div id="totalContractValue" class="summary-value">-</div></div>
+             <div class="summary-box"><h3>Record Types</h3><div id="talentTypes" class="summary-value">-</div></div>
+             <div class="summary-box"><h3>Overall Status</h3><div id="jobStatus" class="summary-value">-</div><div id="daysRemaining" class="summary-subtext">-</div></div>
           </div>
-
-          <h3>Talent Overview</h3>
+          <h3>Talent Summary (Top 10 by Name)</h3>
           <div class="table-container">
             <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Role</th>
-                  <th>Type</th>
-                  <th>Fee</th>
-                </tr>
-              </thead>
-              <tbody id="talentSummaryBody">
-                <!-- Summary talent rows will be inserted here -->
-              </tbody>
+              <thead><tr><th>Name</th><th>Role</th><th>Type</th><th>Fee</th></tr></thead>
+              <tbody id="talentSummaryBody"></tbody>
             </table>
           </div>
         </div>
 
-        <!-- Details Tab -->
         <div id="detailsTab" class="tab-content">
-          <table>
-            <tbody id="jobDetailsContent">
-              <!-- Job details will be inserted here -->
-            </tbody>
-          </table>
+          <table><tbody id="jobDetailsContent"></tbody></table>
         </div>
 
-        <!-- Documents Tab -->
         <div id="documentsTab" class="tab-content">
-          <div id="documentsContent">
-            <!-- Documents will be inserted here -->
-          </div>
+          <div id="documentsContent"></div>
         </div>
       </div>
     </div>
-  </div>
-
-<script>
-  // Get job number from URL parameters
+  </div></div><script>
+  // --- Global Variables ---
   const urlParams = new URLSearchParams(window.location.search);
   const jobNumber = urlParams.get('jobNumber');
-  let jobData = null;
-  let talentData = [];
+  let jobSummaryData = null; // Holds aggregated/derived job info
+  let talentDetailsData = []; // Holds array of processed talent records
+  let currentSort = { field: 'name', ascending: true };
+  let currentGroup = 'none';
 
-  // DOM elements
+  // --- DOM Elements ---
   const loadingEl = document.getElementById('loading');
   const errorEl = document.getElementById('error');
-  const jobDetailsEl = document.getElementById('jobDetailsEl');
+  const messageAreaEl = document.getElementById('messageArea');
+  const contentAreaEl = document.getElementById('contentArea');
   const tableViewBtn = document.getElementById('tableViewBtn');
   const detailsViewBtn = document.getElementById('detailsViewBtn');
-  const tableView = document.getElementById('tableView');
-  const detailsView = document.getElementById('detailsView');
+  const tableViewEl = document.getElementById('tableView');
+  const detailsViewEl = document.getElementById('detailsView');
+  const talentTableBody = document.getElementById('talentTableBody');
+  const talentSummaryBody = document.getElementById('talentSummaryBody');
+  const jobDetailsContent = document.getElementById('jobDetailsContent');
+  const documentsContent = document.getElementById('documentsContent');
 
-  // Check if we have job data in sessionStorage (from timeline click)
-  let sessionJobData = null;
-  try {
-    const storedData = sessionStorage.getItem('currentJobData');
-    if (storedData) {
-      sessionJobData = JSON.parse(storedData);
-    }
-  } catch (e) {
-    console.error("Error reading session storage:", e);
-  }
-
-  // Initialize on page load
-  document.addEventListener('DOMContentLoaded', function() {
-    console.log("Page loaded");
-
-    // View mode switching
-    tableViewBtn.addEventListener('click', function() {
-      tableViewBtn.classList.add('active');
-      detailsViewBtn.classList.remove('active');
-      tableView.classList.add('active');
-      detailsView.classList.remove('active');
-    });
-
-    detailsViewBtn.addEventListener('click', function() {
-      tableViewBtn.classList.remove('active');
-      detailsViewBtn.classList.add('active');
-      tableView.classList.remove('active');
-      detailsView.classList.add('active');
-    });
-
-    // Check if we have a job number
+  // --- Initialization ---
+  document.addEventListener('DOMContentLoaded', () => {
+    setupEventListeners();
     if (!jobNumber) {
-      showError("No job number provided. Please select a job from the dashboard.");
+      showError("No job number specified in the URL.");
       return;
     }
-
-    // Load job data
+    document.getElementById('jobNumber').textContent = `Job #: ${jobNumber}`;
     loadJobDetails();
-
-    // Tab switching
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', function() {
-        // Remove active class from all tabs and content
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-        // Add active class to clicked tab and corresponding content
-        this.classList.add('active');
-        document.getElementById(this.getAttribute('data-tab') + 'Tab').classList.add('active');
-      });
-    });
-
-    // Table sorting
-    document.querySelectorAll('th[data-sort]').forEach(header => {
-      header.addEventListener('click', function() {
-        const sortField = this.getAttribute('data-sort');
-        sortTable(sortField);
-      });
-    });
-
-    // Grouping buttons
-    document.getElementById('groupByNone').addEventListener('click', function() {
-      document.querySelectorAll('.button-group button').forEach(btn => btn.classList.remove('active'));
-      this.classList.add('active');
-      renderTalentTable(talentData);
-    });
-
-    document.getElementById('groupByType').addEventListener('click', function() {
-      document.querySelectorAll('.button-group button').forEach(btn => btn.classList.remove('active'));
-      this.classList.add('active');
-      renderTalentTable(talentData, 'type');
-    });
-
-    document.getElementById('groupByAgency').addEventListener('click', function() {
-      document.querySelectorAll('.button-group button').forEach(btn => btn.classList.remove('active'));
-      this.classList.add('active');
-      renderTalentTable(talentData, 'agency');
-    });
   });
 
-  // Load job details from API
-  async function loadJobDetails() {
-    try {
-      console.log("Loading job details for job number:", jobNumber);
+  // --- Event Listeners Setup ---
+  function setupEventListeners() {
+    tableViewBtn.addEventListener('click', () => switchView('table'));
+    detailsViewBtn.addEventListener('click', () => switchView('details'));
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', function() { switchTab(this.getAttribute('data-tab')); });
+    });
+    document.querySelectorAll('#tableView th[data-sort]').forEach(header => {
+      header.addEventListener('click', function() {
+        setSort(this.getAttribute('data-sort'));
+        renderTalentTable();
+      });
+    });
+    document.querySelectorAll('.button-group button[data-group]').forEach(button => {
+        button.addEventListener('click', function() {
+            currentGroup = this.getAttribute('data-group');
+            document.querySelectorAll('.button-group button[data-group]').forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            renderTalentTable();
+        });
+    });
+    const csvBtn = document.getElementById('printCsvBtn');
+    if (csvBtn) { // Good practice to check if the element exists
+      csvBtn.addEventListener('click', generateAndDownloadCsv);
+  }
+  }
 
-      // First, use any data from session if available
-      if (sessionJobData && sessionJobData.jobNumber === jobNumber) {
-        // Use basic info from session storage
-        updateJobHeader(sessionJobData);
-      }
+  // --- View & Tab Switching ---
+  function switchView(viewName) {
+      tableViewBtn.classList.toggle('active', viewName === 'table');
+      detailsViewBtn.classList.toggle('active', viewName === 'details');
+      tableViewEl.classList.toggle('active', viewName === 'table');
+      detailsViewEl.classList.toggle('active', viewName === 'details');
+  }
+  function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector(`.tab[data-tab="${tabName}"]`)?.classList.add('active');
+      document.getElementById(tabName + 'Tab')?.classList.add('active');
+  }
 
-      // API call to get job details
-      const response = await fetch(`/.netlify/functions/fetchJobTracker?jobNumber=${encodeURIComponent(jobNumber)}`);
-      console.log("API call made to:", `/.netlify/functions/fetchJobTracker?jobNumber=${encodeURIComponent(jobNumber)}`);
+   // --- Sorting Logic ---
+   function setSort(field) {
+        // Check if sorting by jobSummary field
+        const isJobSummarySort = field.startsWith('jobSummaryData.');
+        const sortField = isJobSummarySort ? field.split('.')[1] : field;
 
-      if (!response.ok) {
-        throw new Error(`API returned status ${response.status}`);
-      }
+        if (currentSort.field === field) {
+            currentSort.ascending = !currentSort.ascending;
+        } else {
+            currentSort.field = field; // Store the full field path if needed
+            currentSort.isJobSummarySort = isJobSummarySort; // Track if it's job summary
+            currentSort.sortField = sortField; // Store the actual field name
+            currentSort.ascending = true;
+        }
+        // Update header classes visually
+        document.querySelectorAll('#tableView th[data-sort]').forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc');
+            if (th.getAttribute('data-sort') === field) {
+                th.classList.add(currentSort.ascending ? 'sort-asc' : 'sort-desc');
+            }
+        });
+    }
 
-      const data = await response.json();
-      console.log("API response:", data);
+    function sortData(data) {
+        const { field, sortField, isJobSummarySort, ascending } = currentSort;
+        if (!data) return [];
 
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      // Store job data
-      jobData = data.job || {};
-      talentData = data.talent || [];
-
-      // Debug lines
-      console.log("jobData:", jobData);
-      console.log("talentData:", talentData);
-
-      // Show the job's 21 fields in the single row
-      renderJobTable(jobData);
-
-      // If you also want to see talent in the same table, you'd need to merge fields.
-      // Otherwise, you can show talent in a different table or rely on the summary tab.
-      // e.g. renderTalentTable(talentData);
-
-      updateJobHeader(jobData);
-      updateJobDashboard(jobData, talentData);
-      renderTalentSummary(talentData);
-      renderJobDetails(jobData);
-      renderDocuments(jobData, talentData);
-
-      // Hide loading, show job details
-      loadingEl.style.display = 'none';
-      jobDetailsEl.style.display = 'block';
-
-    } catch (error) {
-      console.error("Error loading job details:", error);
-
-      // If we have session data, show partial information
-      if (sessionJobData && sessionJobData.jobNumber === jobNumber) {
-        jobData = {
-          ...sessionJobData,
-          contractTerm: extractTermFromDates(sessionJobData.firstOnAir, sessionJobData.contractEnd)
+        // Get the value based on whether it's job summary or talent details
+        const getValue = (item) => {
+            if (isJobSummarySort) {
+                return jobSummaryData?.[sortField] ?? '';
+            } else {
+                return item?.[sortField] ?? '';
+            }
         };
 
-        // Update the header at minimum
-        updateJobHeader(jobData);
+        return [...data].sort((a, b) => {
+            let aValue = getValue(a);
+            let bValue = getValue(b);
 
-        // Show limited view with warning
-        loadingEl.style.display = 'none';
-        jobDetailsEl.style.display = 'block';
-
-        showError(`Could not load complete job details: ${error.message}. Showing limited information.`);
-      } else {
-        // Show error if no session data available
-        showError(`Error loading job details: ${error.message}`);
-      }
+            // Handle specific types
+            if (['contractFee', 'firstOnAir', 'contractEnd'].includes(sortField)) {
+                 if (sortField === 'contractFee') {
+                     aValue = parseFloat(aValue) || 0;
+                     bValue = parseFloat(bValue) || 0;
+                 } else { // Date fields
+                     aValue = aValue ? new Date(aValue).getTime() : null;
+                     bValue = bValue ? new Date(bValue).getTime() : null;
+                     if (aValue === null && bValue === null) return 0;
+                     if (aValue === null) return ascending ? -1 : 1;
+                     if (bValue === null) return ascending ? 1 : -1;
+                 }
+                 return ascending ? aValue - bValue : bValue - aValue;
+            }
+            // Default string sort (case-insensitive)
+            const comparison = String(aValue).localeCompare(String(bValue), undefined, { sensitivity: 'base' });
+            return ascending ? comparison : -comparison;
+        });
     }
-  }
 
-  // Extract contract term from dates
-  function extractTermFromDates(startDate, endDate) {
+  // --- Data Loading ---
+  async function loadJobDetails() {
     try {
-      if (!startDate || !endDate) return "N/A";
-
-      const start = typeof startDate === 'string' ? parseDate(startDate) : startDate;
-      const end = typeof endDate === 'string' ? parseDate(endDate) : endDate;
-
-      if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
-        return "N/A";
+      showLoading("Loading Job Details...");
+      const response = await fetch(`/.netlify/functions/fetchJobTracker?jobNumber=${encodeURIComponent(jobNumber)}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API Error (${response.status}): ${errorText || response.statusText}`);
       }
-
-      // Approx months
-      const monthsDiff = (end.getFullYear() - start.getFullYear()) * 12 +
-                         (end.getMonth() - start.getMonth());
-
-      return `${monthsDiff} Months`;
-    } catch (e) {
-      console.error("Error calculating contract term:", e);
-      return "N/A";
-    }
-  }
-
-  // Render a single row with the 21 job fields
-  function renderJobTable(job) {
-    const tableBody = document.getElementById('talentTableBody');
-    if (!tableBody) return;
-
-    tableBody.innerHTML = '';
-
-    if (!job) {
-      const row = document.createElement('tr');
-      row.innerHTML = `<td colspan="21">No job data found.</td>`;
-      tableBody.appendChild(row);
-      return;
-    }
-
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${job.jobTrackerPrimaryID || ""}</td>
-      <td>${job.product || ""}</td>
-      <td>${job.nameOfSpot || ""}</td>
-      <td>${job.contractTerm || ""}</td>
-      <td>${job.firstOnAir || ""}</td>
-      <td>${job.contractEnds || ""}</td>
-      <td>${job.campaignRelease || ""}</td>
-      <td>${job.campaignMedia || ""}</td>
-      <td>${job.territory || ""}</td>
-      <td>${job.jobNo || ""}</td>
-      <td>${job.type || ""}</td>
-      <td>${job.headShot || ""}</td>
-      <td>${job.role || ""}</td>
-      <td>${job.contractDOR || ""}</td>
-      <td>${job.jobSummary || ""}</td>
-      <td>${job.contractFee || ""}</td>
-      <td>${job.loading || ""}</td>
-      <td>${job.options || ""}</td>
-      <td>${job.rollover || ""}</td>
-      <td>${job.voiceover || ""}</td>
-      <td>${job.notesJobTracker || ""}</td>
-    `;
-    tableBody.appendChild(row);
-  }
-
-  // Update job header information
-  function updateJobHeader(job) {
-    if (!job) return;
-
-    document.getElementById('jobName').textContent = job.jobName || 'Unnamed Job';
-    document.getElementById('jobNumber').textContent = `Job #: ${job.jobNumber || 'Unknown'}`;
-    document.getElementById('firstOnAir').textContent = job.firstOnAir || job["First On Air"] || 'N/A';
-    document.getElementById('contractEnds').textContent = job.contractEnd || job["Contract Ends (Calculated) Date For Sorting"] || 'N/A';
-    document.getElementById('contractTerm').textContent =
-      Array.isArray(job.contractTerm)
-        ? job.contractTerm[0]
-        : (job.contractTerm || job["Contract Term"] || 'N/A');
-  }
-
-  // Update job dashboard summary
-  function updateJobDashboard(job, talent) {
-    const talentArray = Array.isArray(talent) ? talent : [];
-    document.getElementById('totalTalent').textContent = talentArray.length;
-
-    let totalValue = 0;
-    talentArray.forEach(person => {
-      const fee = parseFloat(person.contractFee || person["Contract Fee OLD"] || '0');
-      if (!isNaN(fee)) {
-        totalValue += fee;
+      const data = await response.json();
+      if (data.error) { throw new Error(data.error); }
+      if (!data.jobSummary || !data.talentDetails) {
+           throw new Error("API response missing 'jobSummary' or 'talentDetails'.");
       }
-    });
-    document.getElementById('totalContractValue').textContent = formatCurrency(totalValue);
-
-    const typeCount = {};
-    talentArray.forEach(person => {
-      const type = person.type || person.Type || 'Unknown';
-      typeCount[type] = (typeCount[type] || 0) + 1;
-    });
-
-    let typeText = '';
-    if (Object.keys(typeCount).length > 0) {
-      const mainType = Object.keys(typeCount).reduce((a, b) =>
-        typeCount[a] > typeCount[b] ? a : b
-      );
-      typeText = `${mainType} (${typeCount[mainType]})`;
-    } else {
-      typeText = 'N/A';
+      jobSummaryData = data.jobSummary;
+      talentDetailsData = data.talentDetails;
+      console.log("Job Summary Data:", jobSummaryData);
+      console.log("Talent Details Data:", talentDetailsData);
+      populateUI(); // Call function to update all UI parts
+      showContent();
+    } catch (error) {
+      console.error("Error loading job details:", error);
+      showError(`Failed to load job details: ${error.message}.`);
     }
-    document.getElementById('talentTypes').textContent = typeText;
+  }
 
-    // Calculate job status
-    const today = new Date();
-    const endDate = parseDate(job.contractEnd || job["Contract Ends (Calculated) Date For Sorting"]);
-    const startDate = parseDate(job.firstOnAir || job["First On Air"]);
+  // --- UI Population ---
+  function populateUI() {
+      updateJobHeader(jobSummaryData);
+      updateJobDashboard(jobSummaryData, talentDetailsData);
+      renderTalentSummary(talentDetailsData);
+      renderJobDetails(jobSummaryData);
+      renderDocuments(talentDetailsData);
+      renderTalentTable(); // Initial render of the main 21-col talent list
+  }
 
-    let status, daysText;
-    if (!startDate || !endDate) {
-      status = 'Unknown';
-      daysText = '';
-    } else if (today < startDate) {
-      status = 'Upcoming';
-      const daysToStart = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
-      daysText = `Starts in ${daysToStart} days`;
-    } else if (today > endDate) {
-      status = 'Expired';
-      const daysAgo = Math.ceil((today - endDate) / (1000 * 60 * 60 * 24));
-      daysText = `Expired ${daysAgo} days ago`;
-    } else {
-      status = 'Active';
-      const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
-      daysText = `${daysLeft} days remaining`;
-    }
+  // --- Rendering Functions ---
+  function updateJobHeader(summary) {
+    document.getElementById('jobName').textContent = summary?.jobName || 'Job Details';
+    document.getElementById('jobNumber').textContent = `Job #: ${summary?.jobNumber || jobNumber || 'Unknown'}`;
+    document.getElementById('firstOnAir').textContent = formatDate(summary?.firstOnAir, 'N/A'); // Uses overall dates
+    document.getElementById('contractEnds').textContent = formatDate(summary?.contractEnd, 'N/A'); // Uses overall dates
+  }
 
+ function updateJobDashboard(summary, talentList) {
+    const talentCount = talentList?.length || 0;
+    document.getElementById('totalTalent').textContent = talentCount;
+    document.getElementById('summaryJobNumber').textContent = summary?.jobNumber || 'N/A';
+    document.getElementById('summaryClient').textContent = summary?.client || summary?.advertiser || 'N/A';
+
+    let totalValue = 0; const typeCount = {};
+    (talentList || []).forEach(person => {
+      const fee = parseFloat(person.contractFee); if (!isNaN(fee)) totalValue += fee;
+      const type = person.type || 'Unknown'; typeCount[type] = (typeCount[type] || 0) + 1;
+    });
+    document.getElementById('totalContractValue').textContent = formatCurrency(totalValue, 'N/A');
+    document.getElementById('talentTypes').textContent = Object.entries(typeCount).map(([t, c]) => `${t} (${c})`).join(', ') || 'N/A';
+
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const endDate = summary?.contractEnd ? parseDate(summary.contractEnd) : null;
+    const startDate = summary?.firstOnAir ? parseDate(summary.firstOnAir) : null;
+    let status = 'Unknown', daysText = '';
+    if (endDate) {
+        endDate.setHours(0,0,0,0); const daysDiff = Math.round((endDate - today) / 86400000);
+        if (daysDiff < 0) { status = 'Expired'; daysText = `Expired ${-daysDiff} days ago`; }
+        else {
+             if (startDate && startDate > today) { status = 'Upcoming'; daysText = `Starts in ${Math.ceil((startDate - today) / 86400000)} days`; }
+             else { status = 'Active'; daysText = `${daysDiff} days remaining`; }
+        }
+    } else { status = 'No End Date'; }
     document.getElementById('jobStatus').textContent = status;
     document.getElementById('daysRemaining').textContent = daysText;
   }
 
-  // Render the “talent” summary
-  function renderTalentSummary(talent) {
-    const tableBody = document.getElementById('talentSummaryBody');
-    if (!tableBody) return;
-
-    tableBody.innerHTML = '';
-
-    if (!talent || !Array.isArray(talent) || talent.length === 0) {
-      const row = document.createElement('tr');
-      row.innerHTML = `<td colspan="4">No talent associated with this job.</td>`;
-      tableBody.appendChild(row);
-      return;
+  function renderTalentSummary(talentList) {
+    talentSummaryBody.innerHTML = '';
+    if (!talentList || talentList.length === 0) {
+      talentSummaryBody.innerHTML = `<tr><td colspan="4">No talent records found.</td></tr>`; return;
     }
-
-    const talentList = [...talent].sort((a, b) =>
-      (a.name || a.Person || '').localeCompare(b.name || b.Person || '')
-    );
-
-    talentList.forEach(person => {
-      const row = document.createElement('tr');
-
-      const name = person.name || person.Person || 'Unknown';
-      const role = person.role || person.Role || 'N/A';
-      const type = person.type || person.Type || 'Unknown';
-
-      let formattedFee = 'N/A';
-      const fee = person.contractFee || person["Contract Fee OLD"];
-      if (fee !== null && fee !== undefined) {
-        const feeValue = parseFloat(fee);
-        if (!isNaN(feeValue)) {
-          formattedFee = formatCurrency(feeValue);
-        } else {
-          formattedFee = fee.toString();
-        }
-      }
-
-      row.innerHTML = `
-        <td>${name}</td>
-        <td>${role}</td>
-        <td>${type}</td>
-        <td>${formattedFee}</td>
-      `;
-      tableBody.appendChild(row);
+    const sortedTalent = sortData(talentList).slice(0, 10); // Use current sort, take top 10
+    sortedTalent.forEach(person => {
+      const row = talentSummaryBody.insertRow();
+      row.innerHTML = `<td>${person.name||'N/A'}</td><td>${person.role||'N/A'}</td><td>${person.type||'N/A'}</td><td>${formatCurrency(person.contractFee,'N/A')}</td>`;
     });
   }
 
-  // (Optional) If you want a separate table for talent in the same 21-col format, you’d do that here
-  function renderTalentTable(talent, groupBy = null) {
-    const tableBody = document.getElementById('talentTableBody');
-    if (!tableBody) return;
+  // --- CSV Generation and Download ---
 
-    tableBody.innerHTML = '';
+  /**
+   * Escapes a value for safe inclusion in a CSV cell.
+   * - Wraps in double quotes if it contains a comma, double quote, or newline.
+   * - Doubles up existing double quotes within the value.
+   */
+  function escapeCsvValue(value) {
+    const stringValue = value === null || value === undefined ? '' : String(value);
+    // Test if quoting is necessary: contains comma, double quote, or newline
+    if (/[",\n\r]/.test(stringValue)) {
+      // Escape double quotes by doubling them and wrap the whole thing in double quotes
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue; // Return as is if no special characters
+  }
 
-    if (!Array.isArray(talent) || talent.length === 0) {
-      const row = document.createElement('tr');
-      row.innerHTML = `<td colspan="7">No talent associated with this job.</td>`;
-      tableBody.appendChild(row);
-      return;
+  /**
+   * Generates the CSV content string from the talent data.
+   */
+  function generateCsvContent() {
+    if (!talentDetailsData || talentDetailsData.length === 0) {
+      alert("No talent data available to export.");
+      return null;
+    }
+    if (!jobSummaryData) {
+       alert("Job summary data is missing, CSV might be incomplete.");
+       // Continue anyway, but job-level fields will be blank
     }
 
-    const talentList = [...talent];
-    talentList.sort((a, b) => {
-      const aName = a.name || a.Person || '';
-      const bName = b.name || b.Person || '';
-      return aName.localeCompare(bName);
+    const jobData = jobSummaryData || {}; // Use summary data for job-level fields
+    const na = ''; // Use empty string for N/A in CSV
+
+    // 1. Define CSV Headers (matching the 21-column table order)
+    const headers = [
+      "Job Tracker Primary ID", "Product", "Name of Spot", "Contract Term",
+      "First On Air", "Contract Ends", "Campaign Release/Usage",
+      "Campaign Media/Deliverables", "Territory", "Job No.", "Type",
+      "Head Shot URL", // Use URL instead of image tag
+      "Role", // Changed from Role/Name
+      "Contract URL", // Use URL instead of link
+      "Job Summary URL", // Use URL if applicable
+      "Contract Fee", "Loading", "Options", "Rollover Fee", "Voiceover",
+      "NOTES Job Tracker"
+    ];
+
+    // 2. Prepare Data Rows
+    // Use the currently sorted data
+    const sortedData = sortData(talentDetailsData);
+
+    const rows = sortedData.map(person => {
+      // Extract data similar to createTalentRow, but prepare for CSV
+      const headshotUrl = person.headShot?.url || na;
+      const contractUrl = person.contractUrl || na;
+      const jobSummaryUrl = ""; // Usually not per-talent
+
+      const rowData = [
+        person.jobTrackerPrimaryID || na,
+        jobData.product || na,
+        jobData.jobName || na,
+        person.contractTerm || na,
+        formatDate(person.firstOnAir, na), // Use consistent date format
+        formatDate(person.contractEnd, na), // Use consistent date format
+        jobData.campaignRelease || na,
+        jobData.campaignMedia || na,
+        jobData.territory || na,
+        jobData.jobNumber || na,
+        person.type || na,
+        headshotUrl, // Just the URL
+        person.role || na, // Use Role
+        contractUrl, // Just the URL
+        jobSummaryUrl, // Likely blank
+        person.contractFee === null || person.contractFee === undefined ? na : person.contractFee, // Raw fee number/string
+        person.loading || na, // Ensure these exist in talentDetailsData if needed
+        person.options || na, // Ensure these exist in talentDetailsData if needed
+        person.rolloverFee || na, // Ensure these exist in talentDetailsData if needed
+        person.voiceover || na, // Ensure these exist in talentDetailsData if needed
+        jobData.notesJobTracker || na
+      ];
+
+      // Escape each value in the row
+      return rowData.map(escapeCsvValue).join(',');
     });
 
-    if (groupBy) {
-      const groups = {};
-      talentList.forEach(person => {
-        let groupValue = 'Unknown';
-        if (groupBy === 'type') {
-          groupValue = person.type || person.Type || 'Unknown';
-        } else if (groupBy === 'agency') {
-          groupValue = person.agency || person["Talent Agency"] || 'Unknown';
-        }
-        if (!groups[groupValue]) {
-          groups[groupValue] = [];
-        }
-        groups[groupValue].push(person);
-      });
+    // 3. Combine Headers and Rows
+    return [headers.join(','), ...rows].join('\n');
+  }
 
-      Object.keys(groups).sort().forEach(groupValue => {
-        const groupRow = document.createElement('tr');
-        groupRow.className = 'group-header';
-        groupRow.innerHTML = `<td colspan="7">${groupValue} (${groups[groupValue].length})</td>`;
-        tableBody.appendChild(groupRow);
+  /**
+   * Triggers the download of the generated CSV content.
+   */
+  function generateAndDownloadCsv() {
+    console.log("Generating CSV...");
+    const csvContent = generateCsvContent();
 
-        groups[groupValue].forEach(person => {
-          const row = createTalentRow(person);
-          if (row) tableBody.appendChild(row);
-        });
-      });
+    if (!csvContent) {
+      console.log("CSV generation aborted or failed.");
+      return; // Don't proceed if no content
+    }
+
+    // Create a Blob
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    // Create a link element
+    const link = document.createElement("a");
+
+    // Create a URL for the Blob
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+
+    // Suggest a filename
+    const safeJobNumber = jobNumber ? jobNumber.replace(/[^a-z0-9]/gi, '_') : 'data';
+    const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    link.setAttribute("download", `job_${safeJobNumber}_talent_${timestamp}.csv`);
+
+    // Append the link to the body (required for Firefox), hide it, click it, remove it
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Optional: Revoke the object URL after a short delay
+    // setTimeout(() => URL.revokeObjectURL(url), 100);
+
+    console.log("CSV download initiated.");
+  }
+
+  // Renders the main 21-COLUMN talent table
+    // Renders the main 21-COLUMN talent table
+  function renderTalentTable() {
+    talentTableBody.innerHTML = '';
+    if (!talentDetailsData || talentDetailsData.length === 0) {
+      talentTableBody.innerHTML = `<tr><td colspan="21">No talent records found.</td></tr>`;
+      return;
+    }
+    const sortedData = sortData(talentDetailsData);
+
+    if (currentGroup === 'none') {
+        sortedData.forEach(person => talentTableBody.appendChild(createTalentRow(person)));
     } else {
-      talentList.forEach(person => {
-        const row = createTalentRow(person);
-        if (row) tableBody.appendChild(row);
-      });
-    }
-  }
+        // Grouping logic
+        const groups = {};
+        const defaultGroupName = currentGroup === 'agency' ? 'Unknown Agency' : 'Unknown'; // Specific default for agency
 
-  // Example of how you'd create a row for a "talent" record
-  function createTalentRow(record) {
+        sortedData.forEach(person => {
+            // Use person[currentGroup]. If null or empty, use the default group name.
+            const groupValue = person[currentGroup] || defaultGroupName;
+            if (!groups[groupValue]) groups[groupValue] = [];
+            groups[groupValue].push(person);
+        });
+
+        Object.keys(groups).sort((a, b) => {
+            // Ensure "Unknown Agency" group appears last
+            if (a === defaultGroupName) return 1;
+            if (b === defaultGroupName) return -1;
+            return a.localeCompare(b); // Sort other groups alphabetically
+        }).forEach(groupValue => {
+            const headerRow = talentTableBody.insertRow();
+            headerRow.className = 'group-header';
+            // Display the determined groupValue (which will be the name or "Unknown Agency")
+            headerRow.innerHTML = `<td colspan="21">${groupValue} (${groups[groupValue].length})</td>`;
+            groups[groupValue].forEach(person => talentTableBody.appendChild(createTalentRow(person)));
+        });
+    }
+}
+
+  // Creates a single row for the 21-COLUMN talent table
+  // Uses 'person' from talentDetailsData and 'jobSummaryData' for job-level fields
+  function createTalentRow(person) {
     const row = document.createElement('tr');
+    const na = 'N/A'; // Default value
+
+    // --- Get Talent Specific Data ---
+    const headshot = person.headShot;
+    const headshotHtml = headshot ? `<img src="${headshot.thumbnails?.small?.url || headshot.url}" alt="Headshot" title="${headshot.filename || ''}">` : "";
+    const contractLink = person.contractUrl ? `<a href="${person.contractUrl}" class="doc-link" target="_blank">View</a>` : "";
+    // Job Summary doc usually isn't per-talent, maybe link to job summary tab? Or leave blank.
+    const jobSummaryLink = ""; // Decide if needed
+
+    // --- Get Job Level Data (from global jobSummaryData) ---
+    const jobData = jobSummaryData || {}; // Fallback to empty object
+
     row.innerHTML = `
-      <td>${record["Job Tracker Primary ID"] || ""}</td>
-      <td>${record["Product"] || ""}</td>
-      <td>${record["Name of Spot"] || ""}</td>
-      <td>${record["Contract Term"] || ""}</td>
-      <td>${record["First On Air"] || ""}</td>
-      <td>${record["Contract Ends"] || ""}</td>
-      <td>${record["Campaign Release/Usage"] || ""}</td>
-      /* ... etc. up to 21 columns ... */
+      <td>${person.jobTrackerPrimaryID || na}</td>
+      <td>${jobData.product || na}</td>
+      <td>${jobData.jobName || na}</td>
+      <td>${person.contractTerm || na}</td>
+      <td>${formatDate(person.firstOnAir, na)}</td>
+      <td>${formatDate(person.contractEnd, na)}</td>
+      <td>${jobData.campaignRelease || na}</td>
+      <td>${jobData.campaignMedia || na}</td>
+      <td>${jobData.territory || na}</td>
+      <td>${jobData.jobNumber || na}</td>
+      <td>${person.type || na}</td>
+      <td class="headshot">${headshotHtml}</td>
+      <td>${person.role || na}</td>
+      <td>${contractLink}</td>
+      <td>${jobSummaryLink}</td>
+      <td>${formatCurrency(person.contractFee, na)}</td>
+      <td>${person.loading || na}</td> <td>${person.options || na}</td> <td>${person.rolloverFee || na}</td> <td>${person.voiceover || na}</td> <td>${jobData.notesJobTracker || na}</td>
     `;
     return row;
   }
 
-  // Render job details in the “details” tab
-  function renderJobDetails(job) {
-    const detailsContent = document.getElementById('jobDetailsContent');
-    if (!detailsContent) return;
-
-    detailsContent.innerHTML = '';
-
-    if (!job) {
-      const row = document.createElement('tr');
-      row.innerHTML = `<td colspan="2">No job details available.</td>`;
-      detailsContent.appendChild(row);
-      return;
-    }
-
-    const fieldsToShow = [
-      { label: 'Job Number', field: 'jobNumber' },
-      { label: 'Job Name', field: 'jobName' },
-      { label: 'Client', field: 'client', altField: 'Advertiser' },
-      { label: 'Job Description', field: 'jobDescription', altField: 'Job Description - Product Details' },
-      { label: 'Territory', field: 'territory', altField: 'Territory' },
-      { label: 'First On Air', field: 'firstOnAir', altField: 'First On Air' },
-      { label: 'Contract Ends', field: 'contractEnd', altField: 'Contract Ends (Calculated) Date For Sorting' },
-      { label: 'Contract Term', field: 'contractTerm', altField: 'Contract Term' },
-      { label: 'Usage Rights', field: 'usageRights', altField: 'CONTRACTED RELEASE FROM JOB TRACKER REF FIELD' },
-      { label: 'Contracted Executions', field: 'contractedExecutions', altField: 'CONTRACTED EXECUTIONS FROM JOB TRACKER REF FIELD copy' }
+  // Render aggregated job details (Job Info tab, uses jobSummaryData)
+  function renderJobDetails(summary) {
+    jobDetailsContent.innerHTML = '';
+    if (!summary) { jobDetailsContent.innerHTML = `<tr><td colspan="2">No job summary.</td></tr>`; return; }
+    const fields = [
+      { label: 'Job Number', value: summary.jobNumber }, { label: 'Job Name', value: summary.jobName },
+      { label: 'Client / Advertiser', value: summary.client || summary.advertiser }, { label: 'Product', value: summary.product },
+      { label: 'Job Description', value: summary.jobDescription }, { label: 'Campaign Release/Usage', value: summary.campaignRelease },
+      { label: 'Campaign Media/Deliverables', value: summary.campaignMedia }, { label: 'Territory', value: summary.territory },
+      { label: 'Overall First On Air', value: formatDate(summary.firstOnAir, 'N/A') }, { label: 'Overall Contract End', value: formatDate(summary.contractEnd, 'N/A') },
+      { label: 'Job Notes', value: summary.notesJobTracker }
     ];
+    let content = ''; fields.forEach(f => { if(f.value) content += `<tr><th>${f.label}</th><td>${f.value}</td></tr>`; });
+    jobDetailsContent.innerHTML = content || `<tr><td colspan="2">No details available.</td></tr>`;
+  }
 
-    let hasFields = false;
-
-    fieldsToShow.forEach(field => {
-      let value = job[field.field];
-      if ((value === undefined || value === null) && field.altField) {
-        value = job[field.altField];
-      }
-      if (value === undefined || value === null) {
-        return;
-      }
-
-      hasFields = true;
-      const row = document.createElement('tr');
-
-      if (Array.isArray(value)) {
-        value = value.join(', ');
-      }
-
-      row.innerHTML = `
-        <th style="width: 30%;">${field.label}</th>
-        <td>${value}</td>
-      `;
-      detailsContent.appendChild(row);
+  // Render all unique documents (All Documents tab, uses talentDetailsData)
+  function renderDocuments(talentList) {
+    documentsContent.innerHTML = ''; const allDocs = new Map();
+    (talentList || []).forEach(person => {
+        const name = person.name || 'Talent';
+        if (person.dealMemoUrl && !allDocs.has(person.dealMemoUrl)) allDocs.set(person.dealMemoUrl, { name: `${name} - Deal Memo`, url: person.dealMemoUrl });
+        if (person.contractUrl && !allDocs.has(person.contractUrl)) allDocs.set(person.contractUrl, { name: `${name} - Contract/DOR`, url: person.contractUrl });
     });
-
-    if (!hasFields) {
-      const row = document.createElement('tr');
-      row.innerHTML = `<td colspan="2">No additional details available.</td>`;
-      detailsContent.appendChild(row);
-    }
+    if (allDocs.size === 0) { documentsContent.innerHTML = `<p>No documents found.</p>`; return; }
+    const sortedDocs = Array.from(allDocs.values()).sort((a, b) => a.name.localeCompare(b.name));
+    documentsContent.innerHTML = `<ul>${sortedDocs.map(doc => `<li><a href="${doc.url}" class="doc-link" target="_blank">${doc.name}</a></li>`).join('')}</ul>`;
   }
 
-  // Render documents in the “documents” tab
-  function renderDocuments(job, talent) {
-    const docsContent = document.getElementById('documentsContent');
-    if (!docsContent) return;
+  // --- Utility Functions ---
+  function formatCurrency(value, defaultValue = '') { /* ... (same as before) ... */ }
+  function formatDate(dateString, defaultValue = '') { /* ... (same as before) ... */ }
+  function parseDate(dateStr) { /* ... (same as before) ... */ }
+  function showLoading(message = "Loading...") { /* ... (same as before) ... */ }
+  function showError(message) { /* ... (same as before) ... */ }
+  function showContent() { /* ... (same as before) ... */ }
 
-    docsContent.innerHTML = '';
-
-    let hasDocuments = false;
-
-    if (!job) {
-      docsContent.innerHTML = `<p>No job data available.</p>`;
-      return;
-    }
-
-    const talentArray = Array.isArray(talent) ? talent : [];
-
-    // Job documents
-    if (job.documents && job.documents.length > 0) {
-      hasDocuments = true;
-      const jobDocsSection = document.createElement('div');
-      jobDocsSection.innerHTML = `<h3>Job Documents</h3>`;
-
-      const docsList = document.createElement('ul');
-      job.documents.forEach(doc => {
-        const item = document.createElement('li');
-        item.innerHTML = `<a href="${doc.url}" class="doc-link" target="_blank">${doc.name || 'Document'}</a>`;
-        docsList.appendChild(item);
-      });
-
-      jobDocsSection.appendChild(docsList);
-      docsContent.appendChild(jobDocsSection);
-    } else if (job["Job Summary"] && Array.isArray(job["Job Summary"])) {
-      hasDocuments = true;
-      const jobDocsSection = document.createElement('div');
-      jobDocsSection.innerHTML = `<h3>Job Documents</h3>`;
-
-      const docsList = document.createElement('ul');
-      job["Job Summary"].forEach(doc => {
-        const item = document.createElement('li');
-        item.innerHTML = `<a href="${doc.url}" class="doc-link" target="_blank">${doc.filename || 'Document'}</a>`;
-        docsList.appendChild(item);
-      });
-
-      jobDocsSection.appendChild(docsList);
-      docsContent.appendChild(jobDocsSection);
-    }
-
-    // Talent documents
-    const talentWithDocs = talentArray.filter(p => p && (
-      p.contract ||
-      p["Contract / DOR"] ||
-      p.dealMemo ||
-      p["Deal Memo"]
-    ));
-
-    if (talentWithDocs.length > 0) {
-      hasDocuments = true;
-      const talentDocsSection = document.createElement('div');
-      talentDocsSection.innerHTML = `<h3>Talent Documents</h3>`;
-
-      const docsList = document.createElement('ul');
-      talentWithDocs.forEach(person => {
-        const name = person.name || person.Person || 'Unnamed Talent';
-
-        const contract = person.contract || (person["Contract / DOR"] && person["Contract / DOR"][0]?.url);
-        if (contract) {
-          const item = document.createElement('li');
-          item.innerHTML = `<a href="${contract}" class="doc-link" target="_blank">${name} - Contract</a>`;
-          docsList.appendChild(item);
-        }
-
-        const dealMemo = person.dealMemo || (person["Deal Memo"] && person["Deal Memo"][0]?.url);
-        if (dealMemo) {
-          const item = document.createElement('li');
-          item.innerHTML = `<a href="${dealMemo}" class="doc-link" target="_blank">${name} - Deal Memo</a>`;
-          docsList.appendChild(item);
-        }
-      });
-
-      talentDocsSection.appendChild(docsList);
-      docsContent.appendChild(talentDocsSection);
-    }
-
-    if (!hasDocuments) {
-      docsContent.innerHTML = `<p>No documents available for this job.</p>`;
-    }
-  }
-
-  // Sort table by column
-  function sortTable(field) {
-    const header = document.querySelector(`th[data-sort="${field}"]`);
-    if (!header) return;
-
-    const currentDir = header.classList.contains('sort-asc')
-      ? 'desc'
-      : (header.classList.contains('sort-desc') ? 'none' : 'asc');
-
-    document.querySelectorAll('th[data-sort]').forEach(el => {
-      el.classList.remove('sort-asc', 'sort-desc');
-    });
-
-    if (!Array.isArray(talentData)) {
-      console.error("talentData is not an array during sort");
-      return;
-    }
-
-    if (currentDir === 'asc') {
-      header.classList.add('sort-asc');
-      talentData.sort((a, b) => compareFields(a, b, field, true));
-    } else if (currentDir === 'desc') {
-      header.classList.add('sort-desc');
-      talentData.sort((a, b) => compareFields(a, b, field, false));
-    } else {
-      // Reset to default sort by name
-      talentData.sort((a, b) => {
-        const aName = a.name || a.Person || '';
-        const bName = b.name || b.Person || '';
-        return aName.localeCompare(bName);
-      });
-    }
-
-    let groupBy = null;
-    if (document.getElementById('groupByType').classList.contains('active')) {
-      groupBy = 'type';
-    } else if (document.getElementById('groupByAgency').classList.contains('active')) {
-      groupBy = 'agency';
-    }
-    renderTalentTable(talentData, groupBy);
-  }
-
-  function compareFields(a, b, field, ascending) {
-    let aValue, bValue;
-
-    if (field === 'name') {
-      aValue = a.name || a.Person || '';
-      bValue = b.name || b.Person || '';
-    } else if (field === 'agency') {
-      aValue = a.agency || a["Talent Agency"] || '';
-      bValue = b.agency || b["Talent Agency"] || '';
-    } else if (field === 'type') {
-      aValue = a.type || a.Type || '';
-      bValue = b.type || b.Type || '';
-    } else if (field === 'role') {
-      aValue = a.role || a.Role || '';
-      bValue = b.role || b.Role || '';
-    } else if (field === 'fee') {
-      aValue = parseFloat(a.contractFee || a["Contract Fee OLD"] || 0);
-      bValue = parseFloat(b.contractFee || b["Contract Fee OLD"] || 0);
-      return ascending ? aValue - bValue : bValue - aValue;
-    } else {
-      aValue = a[field] || '';
-      bValue = b[field] || '';
-    }
-
-    const cmp = String(aValue).localeCompare(String(bValue));
-    return ascending ? cmp : -cmp;
-  }
-
-  // Helper function to format currency
-  function formatCurrency(value) {
-    if (value === undefined || value === null) return '';
-
+  // Ensure utility functions are defined here or included externally
+  // (Copying them from previous response for completeness)
+  function formatCurrency(value, defaultValue = '') {
+    if (value === undefined || value === null || value === '') return defaultValue;
     const numValue = parseFloat(value);
-    if (isNaN(numValue)) return '';
-
-    return '$' + numValue.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
+    if (isNaN(numValue)) return String(value); // Return original string if not number
+    return '$' + numValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-
-  // Helper function to parse dates
-  function parseDate(dateStr) {
+  function formatDate(dateString, defaultValue = '') {
+      if (!dateString) return defaultValue;
+      try {
+          const date = new Date(dateString);
+          if (isNaN(date.getTime())) {
+            if (typeof dateString === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}/.test(dateString)) {
+                 const parts = dateString.split('/'); // Try DD/MM/YYYY
+                 const euDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+                 if (!isNaN(euDate.getTime())) return formatDate(euDate.toISOString(), defaultValue);
+            }
+            return defaultValue;
+          }
+          const year = date.getFullYear();
+          const month = (date.getMonth() + 1).toString().padStart(2, '0');
+          const day = date.getDate().toString().padStart(2, '0');
+          return `${year}-${month}-${day}`;
+      } catch (e) { return defaultValue; }
+  }
+ function parseDate(dateStr) {
     if (!dateStr) return null;
     try {
-      // DD/MM/YYYY
-      if (typeof dateStr === 'string' && dateStr.includes('/')) {
-        const parts = dateStr.split('/');
-        if (parts.length === 3) {
-          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-        }
-      }
-      // ISO format
-      if (typeof dateStr === 'string' && dateStr.includes('-')) {
-        return new Date(dateStr);
-      }
-      return new Date(dateStr);
-    } catch (e) {
-      console.error("Date parsing error:", e);
-      return null;
-    }
+      const date = new Date(dateStr); if (!isNaN(date.getTime())) return date;
+       if (typeof dateStr === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}/.test(dateStr)) {
+           const parts = dateStr.split('/'); const euDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+           if (!isNaN(euDate.getTime())) return euDate;
+       } return null;
+    } catch (e) { return null; }
   }
+  function showLoading(message = "Loading...") { messageAreaEl.style.display = 'block'; loadingEl.style.display = 'block'; errorEl.style.display = 'none'; contentAreaEl.style.display = 'none'; loadingEl.innerHTML = `${message} <div class="loading-spinner"></div>`; }
+  function showError(message) { messageAreaEl.style.display = 'block'; loadingEl.style.display = 'none'; errorEl.style.display = 'block'; contentAreaEl.style.display = 'none'; errorEl.textContent = message; }
+  function showContent() { messageAreaEl.style.display = 'none'; contentAreaEl.style.display = 'block'; }
 
-  // Show error message
-  function showError(message) {
-    loadingEl.style.display = 'none';
-    errorEl.style.display = 'block';
-    errorEl.textContent = message;
-  }
 </script>
 </body>
 </html>

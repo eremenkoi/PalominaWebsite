@@ -3,10 +3,16 @@
 const Airtable = require('airtable');
 
 // Initialize Airtable
-const base = new Airtable({apiKey: process.env.AIRTABLE_API_KEY}).base(process.env.AIRTABLE_BASE_ID);
+const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);
+// --- CONFIGURATION ---
+const JOB_TABLE_ID = 'tblavZRcB3OTb37vq'; // Your Job Tracker table ID
+// !!! IMPORTANT: Replace with the ACTUAL Table ID or Name for your Talent Agencies table !!!
+const TALENT_AGENCIES_TABLE_ID = 'tblcXDoQyz2efkRd3'; // e.g., 'tblKxeWAZXF3Bu2yu'
+const AGENCY_NAME_FIELD = 'Name'; // The field containing the agency name in TALENT_AGENCIES_TABLE_ID
+// --- END CONFIGURATION ---
 
 exports.handler = async function(event, context) {
-  // CORS headers
+  // CORS headers - Adjust '*' for production if needed
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -14,248 +20,335 @@ exports.handler = async function(event, context) {
   };
 
   try {
-    // Get job number from query params
     const jobNumber = event.queryStringParameters?.jobNumber;
 
     if (!jobNumber) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: "Job number is required" })
+        body: JSON.stringify({ error: "Job number parameter is required" })
       };
     }
 
-    console.log(`Fetching job details for ${jobNumber}`);
+    console.log(`[fetchJobTracker] Processing request for job number: ${jobNumber}`);
 
-    // Fetch job details
-    const job = await getJobDetails(jobNumber);
+    // Fetch ALL raw records associated with the job number
+    const rawRecords = await fetchAllJobRecords(jobNumber);
 
-    if (!job) {
+    if (!rawRecords || rawRecords.length === 0) {
       return {
         statusCode: 404,
         headers,
-        body: JSON.stringify({ error: "Job not found" })
+        body: JSON.stringify({ error: `No records found for job number: ${jobNumber}` })
       };
     }
 
-    // Fetch talent for this job
-    const talent = await getTalentForJob(jobNumber);
+    // --- START: Added Steps ---
+    // 2. Extract unique Talent Agency IDs
+    const uniqueAgencyIds = extractUniqueLinkedIds(rawRecords, 'Talent Agency');
+    console.log(`[handler] Found ${uniqueAgencyIds.length} unique agency IDs.`);
 
-    // Return data
+    // 3. Fetch Agency Names for the extracted IDs
+    let agencyNameMap = {}; // Initialize empty map
+    if (uniqueAgencyIds.length > 0) {
+      agencyNameMap = await fetchAgencyNames(uniqueAgencyIds); // Call the new helper
+    }
+    // --- END: Added Steps ---
+
+    // Process the raw records into a structured response
+    const { jobSummary, talentDetails } = processJobRecords(rawRecords, jobNumber, agencyNameMap); // Pass the map here
+
+    // Return the structured data
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        job,
-        talent
+        jobSummary,
+        talentDetails
       })
     };
 
   } catch (error) {
-    console.error("Error fetching job details:", error);
-
+    console.error("[fetchJobTracker] Error:", error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: "Failed to fetch job details: " + error.message })
+      body: JSON.stringify({ error: "Failed to fetch or process job details: " + error.message })
     };
   }
 };
 
-// Get job details from Airtable
-async function getJobDetails(jobNumber) {
+// --- Helper Functions ---
+
+// Fetches all raw Airtable records for a given job number
+async function fetchAllJobRecords(jobNumber) {
   return new Promise((resolve, reject) => {
-    base('tblavZRcB3OTb37vq').select({
-      maxRecords: 1,
-      filterByFormula: `{Job No.} = "${jobNumber}"`
-    }).firstPage((err, records) => {
-      if (err) {
-        return reject(err);
+    // This formula assumes 'jobNumber' is a Lookup/Rollup resulting in an array.
+    // Adjust if 'jobNumber' is a simple text field or linked record name.
+    const formula = `FIND("${jobNumber}", ARRAYJOIN({jobNumber}, ",")) > 0`;
+    console.log(`[Airtable Fetch] Using filter: ${formula}`);
+
+    const records = [];
+    base(JOB_TABLE_ID).select({
+      filterByFormula: formula,
+      // Consider specifying needed fields: fields: ['jobNumber', 'Person', ...]
+      // Consider sorting for predictability: sort: [{field: "createdTime", direction: "asc"}],
+    }).eachPage(
+      function page(pageRecords, fetchNextPage) {
+        pageRecords.forEach(record => records.push(record));
+        fetchNextPage();
+      },
+      function done(err) {
+        if (err) {
+          console.error("[Airtable Fetch] Error fetching pages:", err);
+          return reject(err);
+        }
+        console.log(`[Airtable Fetch] Fetched ${records.length} raw records.`);
+        resolve(records);
       }
-
-      if (records.length === 0) {
-        console.log(`No job found with number ${jobNumber}`);
-        return resolve(null);
-      }
-
-      const record = records[0];
-      const fields = record.fields;
-
-       // Now you'll see the 21 fields from "Job Tracker" table
-        console.log("Raw fields:", fields);
-
-      console.log(`Found job: ${fields["Job Name"] || "Unnamed Job"}`);
-
-      // Format job data with your 21 columns
-const job = {
-  id: record.id,
-  jobTrackerPrimaryID: fields["Job Tracker Primary ID"] || null,
-  product: fields["Product"] || null,
-  nameOfSpot: fields["Name of Spot"] || null,
-  contractTerm: fields["Contract Term"] || null,
-  firstOnAir: fields["First On Air"] || null,
-  contractEnds: fields["Contract Ends (Calculated) Date For Sorting"]
-    || fields["Contract Ends"]
-    || null,
-  campaignRelease: fields["Campaign Release/Usage"] || null,
-  campaignMedia: fields["Campaign Media/Deliverables"] || null,
-  territory: fields["Territory"] || null,
-  jobNo: fields["Job No."] || null,
-  type: fields["Type"] || null,
-  headShot: fields["Head Shot"] || null,
-  role: fields["Role"] || null,
-  contractDOR: fields["Contract / DOR"] || null,
-  jobSummary: fields["Job Summary"] || null,
-  contractFee: fields["Contract Fee"] || null,
-  loading: fields["Loading"] || null,
-  options: fields["Options"] || null,
-  rollover: fields["Rollover (inc VO)"] || null,
-  voiceover: fields["Voiceover"] || null,
-  notesJobTracker: fields["NOTES Job Tracker"] || null
-
-      };
-
-      resolve(job);
-    });
+    );
   });
 }
 
-// Get client name from fields
-function getClientName(fields) {
-  // Try different possible field names
-  return fields["Client"] ||
-         fields["Advertiser"] ||
-         (fields["Clients"] && Array.isArray(fields["Clients"]) ?
-          (fields["Clients"][0]?.fields?.["Name"] || fields["Clients"][0]) : null);
+// --- Add This Helper Function ---
+// Extracts unique, valid Record IDs from a specific linked record field across multiple records
+function extractUniqueLinkedIds(records, fieldName) {
+    const idSet = new Set();
+    records.forEach(record => {
+        const linkedIds = record.fields[fieldName]; // This is often an array of IDs
+        if (Array.isArray(linkedIds)) {
+            linkedIds.forEach(id => {
+                if (typeof id === 'string' && id.startsWith('rec')) {
+                    idSet.add(id);
+                }
+            });
+        } else if (typeof linkedIds === 'string' && linkedIds.startsWith('rec')) {
+             idSet.add(linkedIds);
+        }
+    });
+    return Array.from(idSet);
 }
 
-// Get talent associated with this job
-async function getTalentForJob(jobNumber) {
-  return new Promise((resolve, reject) => {
-    base('tblavZRcB3OTb37vq').select({
-      filterByFormula: `{Job No.} = "${jobNumber}"`
-    }).all((err, records) => {
-      if (err) {
-        return reject(err);
-      }
+// --- Add This Helper Function ---
+// Fetches names from the Agencies table for a list of IDs
+async function fetchAgencyNames(agencyIds) {
+    // Use the constants defined at the top of the file
+    if (!TALENT_AGENCIES_TABLE_ID || TALENT_AGENCIES_TABLE_ID === 'tblYOUR_AGENCY_TABLE_ID') { // Basic check
+        console.warn("[fetchAgencyNames] TALENT_AGENCIES_TABLE_ID is not configured correctly. Skipping name fetch.");
+        return {}; // Return empty map if not configured
+    }
+    if (!agencyIds || agencyIds.length === 0) return {};
 
-      console.log(`Found ${records.length} talent records for job ${jobNumber}`);
+    const batchSize = 100; // Process IDs in batches
+    const agencyNameMap = {};
+    console.log(`[fetchAgencyNames] Attempting to fetch names for ${agencyIds.length} IDs from table ${TALENT_AGENCIES_TABLE_ID}.`);
 
-      const talent = records.map(record => {
-        const fields = record.fields;
+    try {
+        for (let i = 0; i < agencyIds.length; i += batchSize) {
+            const batchIds = agencyIds.slice(i, i + batchSize);
+            const formula = "OR(" + batchIds.map(id => `RECORD_ID()='${id}'`).join(',') + ")";
+            // console.log(`[fetchAgencyNames] Fetching batch ${i/batchSize + 1} using formula (first part): ${formula.substring(0,100)}...`); // Log formula carefully
 
-        // Get person name safely
-        let personName = extractPersonName(fields);
+            const agencyRecords = await base(TALENT_AGENCIES_TABLE_ID).select({
+                filterByFormula: formula,
+                fields: [AGENCY_NAME_FIELD] // Only fetch the specified name field
+            }).all();
 
-        // Get agency name safely
-        let agencyName = extractAgencyName(fields);
-
-        // Format contract fee
-        let contractFee = null;
-        if (fields["Contract Fee OLD"]) {
-          const fee = parseFloat(fields["Contract Fee OLD"]);
-          contractFee = isNaN(fee) ? fields["Contract Fee OLD"] : fee;
+            agencyRecords.forEach(record => {
+                // Use nullish coalescing to handle cases where the name field might be empty/null in Airtable
+                agencyNameMap[record.id] = record.fields[AGENCY_NAME_FIELD] ?? null;
+            });
         }
+        console.log(`[fetchAgencyNames] Successfully mapped ${Object.keys(agencyNameMap).length} agency names.`);
+    } catch (error) {
+         console.error(`[fetchAgencyNames] Error fetching agency names:`, error);
+         // Return partially filled map on error
+    }
+    return agencyNameMap;
+}
 
+// Processes raw Airtable records into jobSummary and talentDetails
+function processJobRecords(rawRecords, requestedJobNumber, agencyNameMap = {}) { // Add agencyNameMap parameter
+  if (!rawRecords || rawRecords.length === 0) {
+    return { jobSummary: null, talentDetails: [] };
+  }
+
+  // --- Create Job Summary (Aggregated/Derived Info) ---
+  const firstRecordFields = rawRecords[0].fields;
+  const jobSummary = {
+    jobNumber: requestedJobNumber,
+    // Aggregate common fields or use first record as fallback
+    jobName: getCommonFieldValue(rawRecords, "Job Name") ?? getArrayValue(firstRecordFields["Job Description / Product Details"]) ?? "Unnamed Job",
+    jobDescription: getCommonFieldValue(rawRecords, "Job Description / Product Details") ?? getArrayValue(firstRecordFields["Job Description / Product Details"]),
+    product: getCommonFieldValue(rawRecords, "Product") ?? firstRecordFields["Product"],
+    advertiser: getCommonFieldValue(rawRecords, "Advertiser"), // Usually consistent
+    client: getCommonClientName(rawRecords), // Attempt to find consistent client
+    campaignRelease: getCommonFieldValue(rawRecords, "Campaign Release/Usage"),
+    campaignMedia: getCommonFieldValue(rawRecords, "Campaign Media/Deliverables"),
+    territory: getCommonFieldValue(rawRecords, "Territory"),
+    // Derive overall date range
+    firstOnAir: getMinDate(rawRecords, "First On Air"),
+    contractEnd: getMaxDate(rawRecords, "Contract Ends"),
+    notesJobTracker: getCommonFieldValue(rawRecords, "NOTES Job Tracker"),
+    // Add other potentially common job-level fields if needed
+  };
+
+  // --- Create Talent Details (Specific Info Per Record) ---
+  const talentDetails = rawRecords.map(record => {
+    const fields = record.fields;
+    const personName = extractLinkedName(fields["Person"], ["Legal Name", "Name"]);
+    // Get the Agency ID from the record's field
+    const agencyId = getArrayValue(fields["Talent Agency"]); // Get the first ID
+
+    // Look up the name in the map passed to this function
+    const agencyName = agencyId ? (agencyNameMap[agencyId] || null) : null;
+
+    // Consolidate fee logic
+    let feeValue = fields["Contract Fee"] ?? fields["Rollover (inc VO)"] ?? fields["Rollover (TO RETIRE)"] ?? fields["Contract Fee OLD"];
+    feeValue = getArrayValue(feeValue); // Handle potential array from rollup
+    const parsedFee = parseFloat(feeValue);
+    const contractFee = isNaN(parsedFee) ? feeValue : parsedFee; // Keep original string if not number (e.g., "TBD")
+
+    return {
+      id: record.id, // Specific record ID
+      jobTrackerPrimaryID: fields["Job Tracker Primary ID"], // Keep specific ID if needed
+      name: personName || "Unknown",
+      agency: agencyName, // Use the new formula field directly,
+      type: fields["Type"] || "Unknown",
+      role: fields["Role"] || "N/A",
+      contractFee: contractFee,
+      firstOnAir: getArrayValue(fields["First On Air"]), // Date specific to this record
+      contractEnd: getArrayValue(fields["Contract Ends"]), // Date specific to this record
+      contractTerm: getArrayValue(fields["Contract Term"]), // Term specific to this record
+      dealMemoUrl: getAttachmentUrl(fields["Deal Memo"]),
+      contractUrl: getAttachmentUrl(fields["Contract / DOR"]),
+      headShot: getAttachmentObject(fields["Head Shot"]), // Pass thumbnail/URL object
+      // Include other relevant fields PER talent record if needed
+      // e.g., loading: fields["Loading"], options: fields["Options"], etc.
+    };
+  });
+
+  console.log("[Process Records] Generated jobSummary:", jobSummary);
+  console.log(`[Process Records] Generated ${talentDetails.length} talentDetails.`);
+
+  return { jobSummary, talentDetails };
+}
+
+
+// Safely gets the first element of an array field, or the value itself
+function getArrayValue(fieldValue) {
+  return (Array.isArray(fieldValue) && fieldValue.length > 0) ? fieldValue[0] : fieldValue;
+}
+
+// Gets a field value if it's consistent across all records
+function getCommonFieldValue(records, fieldName) {
+  if (!records || records.length === 0) return undefined;
+  const firstValue = getArrayValue(records[0].fields[fieldName]);
+  for (let i = 1; i < records.length; i++) {
+    if (getArrayValue(records[i].fields[fieldName]) !== firstValue) {
+      return undefined; // Values differ
+    }
+  }
+  return firstValue; // All values are the same
+}
+
+// Extracts name from a linked record field (handles ID or expanded object)
+function extractLinkedName(fieldValue, nameFields = ["Name"]) {
+    const value = getArrayValue(fieldValue); // Get first item/ID from potential array
+    if (!value) return null; // No value found
+
+    if (typeof value === 'object' && value !== null && value.fields) {
+        // Expanded record object - Name likely available
+        for (const nameField of nameFields) {
+            if (value.fields[nameField]) {
+                // Found the name in the specified fields
+                return value.fields[nameField];
+            }
+        }
+        // Expanded object, but couldn't find name field, return ID as fallback
+        console.warn(`Expanded record ${value.id} missing fields: ${nameFields.join(', ')}`);
+        return value.id;
+    } else if (typeof value === 'string' && value.startsWith('rec')) {
+        // Just a record ID string - Return null or a placeholder
+        // Returning null allows the frontend to group under "Unknown" or similar.
+        // console.log(`Found only Record ID for linked field: ${value}`);
+        return null; // ** CHANGED: Return null instead of "ID: rec..." **
+        // Or, return a placeholder: return `Agency ID: ${value}`;
+    }
+    // Fallback if it's neither object nor rec ID (maybe name stored directly?)
+    return typeof value === 'string' ? value : null;
+}
+
+// Gets the earliest valid date from a field across records
+function getMinDate(records, fieldName) {
+  let minDate = null;
+  records.forEach(record => {
+    const dateValue = getArrayValue(record.fields[fieldName]);
+    if (dateValue) {
+      try {
+        const currentDate = new Date(dateValue);
+        if (!isNaN(currentDate.getTime()) && (minDate === null || currentDate < minDate)) {
+          minDate = currentDate;
+        }
+      } catch (e) { /* ignore */ }
+    }
+  });
+  return minDate ? minDate.toISOString().split('T')[0] : null; // YYYY-MM-DD
+}
+
+// Gets the latest valid date from a field across records
+function getMaxDate(records, fieldName) {
+  let maxDate = null;
+  records.forEach(record => {
+    const dateValue = getArrayValue(record.fields[fieldName]);
+    if (dateValue) {
+      try {
+        const currentDate = new Date(dateValue);
+        if (!isNaN(currentDate.getTime()) && (maxDate === null || currentDate > maxDate)) {
+          maxDate = currentDate;
+        }
+      } catch (e) { /* ignore */ }
+    }
+  });
+  return maxDate ? maxDate.toISOString().split('T')[0] : null; // YYYY-MM-DD
+}
+
+// Get the first attachment URL
+function getAttachmentUrl(fieldValue) {
+  const attachment = getArrayValue(fieldValue);
+  return attachment?.url ?? null;
+}
+
+// Get the first attachment object (including thumbnails if available)
+function getAttachmentObject(fieldValue) {
+    const attachment = getArrayValue(fieldValue);
+    // Return relevant parts or the whole object
+    if (attachment?.url) {
         return {
-          id: record.id,
-          name: personName,
-          agency: agencyName,
-          type: fields["Type"] || "Freelance",
-          role: fields["Role"] || "N/A",
-          contractFee: contractFee,
-          dealMemo: getDealMemoUrl(fields),
-          contract: getContractUrl(fields)
-        };
-      });
-
-      resolve(talent);
-    });
-  });
-}
-
-// Extract person name safely
-function extractPersonName(fields) {
-  // If the Person field exists and has data
-  if (fields["Person"] && fields["Person"].length > 0) {
-    const personField = fields["Person"];
-
-    // If it's an array of objects (expanded)
-    if (typeof personField[0] === 'object') {
-      return personField[0]?.fields?.["Legal Name"] ||
-             personField[0]?.fields?.["Name"] ||
-             personField[0]?.id || "Unknown";
-    }
-
-    // If it's just a string field
-    if (typeof fields["Name"] === 'string' && fields["Name"]) {
-      return fields["Name"];
-    }
-
-    // Just an ID reference
-    return `Person ${personField[0]}`;
-  }
-
-  return fields["Name"] || "Unknown";
-}
-
-// Extract agency name safely
-function extractAgencyName(fields) {
-  if (fields["Talent Agency"] && fields["Talent Agency"].length > 0) {
-    const agencyField = fields["Talent Agency"];
-
-    // If it's an array of objects (expanded)
-    if (typeof agencyField[0] === 'object') {
-      return agencyField[0]?.fields?.["Name"] || agencyField[0]?.id || "N/A";
-    }
-
-    // Just an ID reference
-    return `Agency ${agencyField[0]}`;
-  }
-
-  return "N/A";
-}
-
-// Get deal memo URL safely
-function getDealMemoUrl(fields) {
-  if (fields["Deal Memo"] && Array.isArray(fields["Deal Memo"]) && fields["Deal Memo"].length > 0) {
-    return fields["Deal Memo"][0]?.url || null;
-  }
-  return null;
-}
-
-// Get contract URL safely
-function getContractUrl(fields) {
-  if (fields["Contract / DOR"] && Array.isArray(fields["Contract / DOR"]) && fields["Contract / DOR"].length > 0) {
-    return fields["Contract / DOR"][0]?.url || null;
-  }
-  return null;
-}
-
-// Format documents from job record
-function formatDocuments(fields) {
-  const documents = [];
-
-  // Check for known attachment fields
-  const fieldNames = [
-    "Job Summary",
-    "Contract / DOR",
-    "Deal Memo"
-  ];
-
-  fieldNames.forEach(fieldName => {
-    if (fields[fieldName] && Array.isArray(fields[fieldName])) {
-      fields[fieldName].forEach(attachment => {
-        if (attachment.url) {
-          documents.push({
-            name: attachment.filename || fieldName,
             url: attachment.url,
-            type: attachment.type
-          });
-        }
-      });
+            filename: attachment.filename,
+            thumbnails: attachment.thumbnails // Contains small, large, full
+        };
     }
-  });
+    return null;
+}
 
-  return documents;
+
+// Attempts to find a common client name
+function getCommonClientName(records) {
+    // Try 'Clients' field first (might be Lookup returning name or ID)
+    let clientName = getCommonFieldValue(records, "Clients");
+
+    // If 'Clients' gave an ID or was inconsistent, try 'Advertiser'
+    if (!clientName || (typeof clientName === 'string' && clientName.startsWith('rec'))) {
+        clientName = getCommonFieldValue(records, "Advertiser");
+    }
+
+    // If 'Client' field exists and is consistent, it might be useful too
+    if (!clientName) {
+        clientName = getCommonFieldValue(records, "Client");
+    }
+
+    // Ensure the final result isn't an array if it came from a lookup
+    return getArrayValue(clientName);
 }
