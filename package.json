@@ -1,24 +1,21 @@
 {
-  "dependencies": {
-    "airtable": "^0.12.2",
-    "node-fetch": "^2.7.0"
-  },
-  "name": "beautiful-profiterole-151465",
+  "name": "palopay-client-portal",
   "version": "1.0.0",
+  "description": "PaloPay Client Portal for talent agencies",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/eremenkoi/PalominaWebsite.git"
+  "dependencies": {
+    "airtable": "^0.11.6",
+    "jsonwebtoken": "^9.0.2",
+    "node-fetch": "^2.6.7"
   },
-  "keywords": [],
+  "keywords": [
+    "airtable",
+    "netlify",
+    "palopay"
+  ],
   "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/eremenkoi/PalominaWebsite/issues"
-  },
-  "homepage": "https://github.com/eremenkoi/PalominaWebsite#readme",
-  "description": ""
+  "license": "ISC"
 }

@@ -102,127 +102,200 @@
   </style>
 </head>
 <body>
- <div class="container">
-  <a href="#" class="btn back-btn" onclick="window.history.back(); return false;">← Back</a>
+  <div class="container">
+    <a href="#" class="btn back-btn" onclick="window.history.back(); return false;">← Back</a>
 
-  <header>
-    <h1>Job Details</h1>
-    <div id="jobInfo">
-      <h2 id="jobName">Loading...</h2>
-      <p id="jobNumber">Job #: Loading...</p>
-      <div id="jobDates">
-        <span>Overall First On Air: <strong id="firstOnAir">-</strong></span>
-        <span>Overall Contract Ends: <strong id="contractEnds">-</strong></span>
+    <header>
+      <h1>Job Details</h1>
+      <div id="jobInfo">
+        <h2 id="jobName">Loading...</h2>
+        <p id="jobNumber">Job #: Loading...</p>
+        <div id="jobDates">
+          <span>Overall First On Air: <strong id="firstOnAir">-</strong></span>
+          <span>Overall Contract Ends: <strong id="contractEnds">-</strong></span>
+        </div>
       </div>
+    </header>
+
+    <div class="view-buttons">
+      <button id="tableViewBtn" class="btn btn-primary active">View Talent Records (21 Cols)</button>
+      <button id="detailsViewBtn" class="btn btn-primary">View Job Summary Tabs</button>
     </div>
-  </header>
 
-  <div class="view-buttons">
-    <button id="tableViewBtn" class="btn btn-primary active">View Talent Records (21 Cols)</button>
-    <button id="detailsViewBtn" class="btn btn-primary">View Job Summary Tabs</button>
-  </div>
-
-  <div id="messageArea">
+    <div id="messageArea">
       <div id="loading">Loading Job Details... <div class="loading-spinner"></div></div>
-      <div id="error" style="display: none;"></div>
+      <div id="error"></div>
+    </div>
+
+    <div id="contentArea" style="display: none;">
+      <div id="tableView" class="view-mode active">
+        <div class="button-group">
+          <button class="btn btn-light active" data-group="none">No Grouping</button>
+          <button class="btn btn-light" data-group="type">Group by Record Type</button>
+          <button class="btn btn-light" data-group="agency">Group by Agency</button>
+          <button id="printCsvBtn" class="btn btn-secondary">Download CSV</button>
+        </div>
+        <div class="table-container">
+          <table class="talent-table">
+            <thead>
+              <tr>
+                <th data-sort="jobTrackerPrimaryID">Job Tracker Primary ID</th>
+                <th data-sort="jobSummaryData.product">Product</th>
+                <th data-sort="jobSummaryData.jobName">Name of Spot</th>
+                <th data-sort="contractTerm">Contract Term</th>
+                <th data-sort="firstOnAir">First On Air</th>
+                <th data-sort="contractEnd">Contract Ends</th>
+                <th data-sort="jobSummaryData.campaignRelease">Campaign Release/Usage</th>
+                <th data-sort="jobSummaryData.campaignMedia">Campaign Media/Deliverables</th>
+                <th data-sort="jobSummaryData.territory">Territory</th>
+                <th data-sort="jobSummaryData.jobNumber">Job No.</th>
+                <th data-sort="type">Type</th>
+                <th class="headshot">Head Shot</th>
+                <th data-sort="role">Role</th>
+                <th>Contract / DOR</th>
+                <th>Job Summary Doc</th>
+                <th data-sort="contractFee">Contract Fee</th>
+                <th>Loading</th>
+                <th>Options</th>
+                <th>Rollover Fee</th>
+                <th>Voiceover</th>
+                <th data-sort="jobSummaryData.notesJobTracker">NOTES Job Tracker</th>
+              </tr>
+            </thead>
+            <tbody id="talentTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="detailsView" class="view-mode">
+        <div class="tab-container">
+          <div class="tabs">
+            <div class="tab active" data-tab="summary">Overview</div>
+            <div class="tab" data-tab="details">Job Info</div>
+            <div class="tab" data-tab="documents">All Documents</div>
+          </div>
+
+          <div id="summaryTab" class="tab-content active">
+            <div class="summary-grid">
+               <div class="summary-box"><h3>Job Number</h3><div id="summaryJobNumber" class="summary-value">-</div></div>
+               <div class="summary-box"><h3>Client / Advertiser</h3><div id="summaryClient" class="summary-value">-</div></div>
+               <div class="summary-box"><h3>Talent Records</h3><div id="totalTalent" class="summary-value">-</div></div>
+               <div class="summary-box"><h3>Total Fees</h3><div id="totalContractValue" class="summary-value">-</div></div>
+               <div class="summary-box"><h3>Record Types</h3><div id="talentTypes" class="summary-value">-</div></div>
+               <div class="summary-box"><h3>Overall Status</h3><div id="jobStatus" class="summary-value">-</div><div id="daysRemaining" class="summary-subtext">-</div></div>
+            </div>
+            <h3>Talent Summary (Top 10 by Name)</h3>
+            <div class="table-container">
+              <table>
+                <thead><tr><th>Name</th><th>Role</th><th>Type</th><th>Fee</th></tr></thead>
+                <tbody id="talentSummaryBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="detailsTab" class="tab-content">
+            <table><tbody id="jobDetailsContent"></tbody></table>
+          </div>
+
+          <div id="documentsTab" class="tab-content">
+            <div id="documentsContent"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
+<script>
+  // -------------------------------------------------------------------
+  // NEW: Handle jobId → jobNumber → data-load in-place (no redirect)
+  // -------------------------------------------------------------------
+  document.addEventListener('DOMContentLoaded', function() {
+    const urlParams       = new URLSearchParams(window.location.search);
+    const jobId           = urlParams.get('jobId');
+    const jobNumberParam  = urlParams.get('jobNumber');
 
-  <div id="contentArea" style="display: none;">
+    if (jobId && !jobNumberParam) {
+      console.log("Found jobId but no jobNumber, fetching job details…");
 
-    <div id="tableView" class="view-mode active">
-      <div class="button-group">
-        <button class="btn btn-light active" data-group="none">No Grouping</button>
-        <button class="btn btn-light" data-group="type">Group by Record Type</button>
-        <button class="btn btn-light" data-group="agency">Group by Agency</button>
-        <button id="printCsvBtn" class="btn btn-secondary">Download CSV</button>
-      </div>
+      // Show loading, hide error & content
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('error').style.display   = 'none';
+      const contentAreaEl = document.getElementById('contentArea');
+      if (contentAreaEl) contentAreaEl.style.display = 'none';
 
-      <div class="table-container">
-        <table class="talent-table">
-          <thead>
-            <tr>
-              <th data-sort="jobTrackerPrimaryID">Job Tracker Primary ID</th>
-              <th data-sort="jobSummaryData.product">Product</th> <th data-sort="jobSummaryData.jobName">Name of Spot</th> <th data-sort="contractTerm">Contract Term</th> <th data-sort="firstOnAir">First On Air</th> <th data-sort="contractEnd">Contract Ends</th> <th data-sort="jobSummaryData.campaignRelease">Campaign Release/Usage</th>
-              <th data-sort="jobSummaryData.campaignMedia">Campaign Media/Deliverables</th>
-              <th data-sort="jobSummaryData.territory">Territory</th>
-              <th data-sort="jobSummaryData.jobNumber">Job No.</th> <th data-sort="type">Type</th> <th class="headshot">Head Shot</th> <th data-sort="role">Role</th><th>Contract / DOR</th> <th>Job Summary Doc</th> <th data-sort="contractFee">Contract Fee</th> <th>Loading</th> <th>Options</th> <th>Rollover Fee</th> <th>Voiceover</th> <th data-sort="jobSummaryData.notesJobTracker">NOTES Job Tracker</th>
-            </tr>
-          </thead>
-          <tbody id="talentTableBody">
-            </tbody>
-        </table>
-      </div>
-    </div>
+      // Update the on-page Job #: label
+      const jobNumberEl = document.getElementById('jobNumber');
+      if (jobNumberEl) jobNumberEl.textContent = `Job #: Fetching…`;
 
-    <div id="detailsView" class="view-mode">
-      <div class="tab-container">
-        <div class="tabs">
-          <div class="tab active" data-tab="summary">Overview</div>
-          <div class="tab" data-tab="details">Job Info</div>
-          <div class="tab" data-tab="documents">All Documents</div>
-        </div>
+      // 1️⃣ Fetch the jobNumber by recordId
+      fetch(`/.netlify/functions/fetchJobById?recordId=${encodeURIComponent(jobId)}`)
+        .then(resp => {
+          if (!resp.ok) throw new Error(`API Error (${resp.status}): ${resp.statusText}`);
+          return resp.json();
+        })
+        .then(data => {
+          if (data.error) throw new Error(data.error);
+          if (!data.jobNumber) throw new Error("Job number not found in record");
 
-        <div id="summaryTab" class="tab-content active">
-          <div class="summary-grid">
-             <div class="summary-box"><h3>Job Number</h3><div id="summaryJobNumber" class="summary-value">-</div></div>
-             <div class="summary-box"><h3>Client / Advertiser</h3><div id="summaryClient" class="summary-value">-</div></div>
-             <div class="summary-box"><h3>Talent Records</h3><div id="totalTalent" class="summary-value">-</div></div>
-             <div class="summary-box"><h3>Total Fees</h3><div id="totalContractValue" class="summary-value">-</div></div>
-             <div class="summary-box"><h3>Record Types</h3><div id="talentTypes" class="summary-value">-</div></div>
-             <div class="summary-box"><h3>Overall Status</h3><div id="jobStatus" class="summary-value">-</div><div id="daysRemaining" class="summary-subtext">-</div></div>
-          </div>
-          <h3>Talent Summary (Top 10 by Name)</h3>
-          <div class="table-container">
-            <table>
-              <thead><tr><th>Name</th><th>Role</th><th>Type</th><th>Fee</th></tr></thead>
-              <tbody id="talentSummaryBody"></tbody>
-            </table>
-          </div>
-        </div>
+          console.log("Received job data:", data);
+          jobNumberEl.textContent = `Job #: ${data.jobNumber}`;
 
-        <div id="detailsTab" class="tab-content">
-          <table><tbody id="jobDetailsContent"></tbody></table>
-        </div>
+          // 2️⃣ Immediately fetch the full tracker payload
+          return fetch(`/.netlify/functions/fetchJobTracker?jobNumber=${encodeURIComponent(data.jobNumber)}`);
+        })
+        .then(resp => {
+          if (!resp.ok) throw new Error(`API Error (${resp.status}): ${resp.statusText}`);
+          return resp.json();
+        })
+        .then(data => {
+          if (data.error) throw new Error(data.error);
+          if (!data.jobSummary || !data.talentDetails)
+            throw new Error("API response missing 'jobSummary' or 'talentDetails'.");
 
-        <div id="documentsTab" class="tab-content">
-          <div id="documentsContent"></div>
-        </div>
-      </div>
-    </div>
-  </div></div><script>
+          // Assign into the globals expected by the rest of your script
+          window.jobSummaryData    = data.jobSummary;
+          window.talentDetailsData = data.talentDetails;
+
+          console.log("Job Summary Data:", window.jobSummaryData);
+          console.log("Talent Details Data:", window.talentDetailsData);
+
+          // Populate and show
+          populateUI();
+          showContent();
+        })
+        .catch(err => {
+          console.error("Error in job ID processing:", err);
+          document.getElementById('loading').style.display = 'none';
+          const errorEl = document.getElementById('error');
+          if (errorEl) {
+            errorEl.textContent = `Failed to load job details: ${err.message}`;
+            errorEl.style.display = 'block';
+          }
+        });
+    }
+  });
+
   // --- Global Variables ---
-  const urlParams = new URLSearchParams(window.location.search);
-  const jobNumber = urlParams.get('jobNumber');
-  let jobSummaryData = null; // Holds aggregated/derived job info
-  let talentDetailsData = []; // Holds array of processed talent records
-  let currentSort = { field: 'name', ascending: true };
-  let currentGroup = 'none';
+  const urlParams          = new URLSearchParams(window.location.search);
+  let jobNumber            = urlParams.get('jobNumber');
+  let jobSummaryData       = null;
+  let talentDetailsData    = [];
+  let currentSort          = { field: 'name', ascending: true };
+  let currentGroup         = 'none';
 
   // --- DOM Elements ---
-  const loadingEl = document.getElementById('loading');
-  const errorEl = document.getElementById('error');
-  const messageAreaEl = document.getElementById('messageArea');
-  const contentAreaEl = document.getElementById('contentArea');
-  const tableViewBtn = document.getElementById('tableViewBtn');
-  const detailsViewBtn = document.getElementById('detailsViewBtn');
-  const tableViewEl = document.getElementById('tableView');
-  const detailsViewEl = document.getElementById('detailsView');
-  const talentTableBody = document.getElementById('talentTableBody');
-  const talentSummaryBody = document.getElementById('talentSummaryBody');
-  const jobDetailsContent = document.getElementById('jobDetailsContent');
-  const documentsContent = document.getElementById('documentsContent');
-
-  // --- Initialization ---
-  document.addEventListener('DOMContentLoaded', () => {
-    setupEventListeners();
-    if (!jobNumber) {
-      showError("No job number specified in the URL.");
-      return;
-    }
-    document.getElementById('jobNumber').textContent = `Job #: ${jobNumber}`;
-    loadJobDetails();
-  });
+  const loadingEl          = document.getElementById('loading');
+  const errorEl            = document.getElementById('error');
+  const messageAreaEl      = document.getElementById('messageArea');
+  const contentAreaEl2     = document.getElementById('contentArea');
+  const tableViewBtn       = document.getElementById('tableViewBtn');
+  const detailsViewBtn     = document.getElementById('detailsViewBtn');
+  const tableViewEl        = document.getElementById('tableView');
+  const detailsViewEl      = document.getElementById('detailsView');
+  const talentTableBody    = document.getElementById('talentTableBody');
+  const talentSummaryBody  = document.getElementById('talentSummaryBody');
+  const jobDetailsContent  = document.getElementById('jobDetailsContent');
+  const documentsContent   = document.getElementById('documentsContent');
 
   // --- Event Listeners Setup ---
   function setupEventListeners() {
@@ -238,112 +311,146 @@
       });
     });
     document.querySelectorAll('.button-group button[data-group]').forEach(button => {
-        button.addEventListener('click', function() {
-            currentGroup = this.getAttribute('data-group');
-            document.querySelectorAll('.button-group button[data-group]').forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
-            renderTalentTable();
-        });
+      button.addEventListener('click', function() {
+        currentGroup = this.getAttribute('data-group');
+        document.querySelectorAll('.button-group button[data-group]').forEach(btn => btn.classList.remove('active'));
+        this.classList.add('active');
+        renderTalentTable();
+      });
     });
     const csvBtn = document.getElementById('printCsvBtn');
-    if (csvBtn) { // Good practice to check if the element exists
+    if (csvBtn) {
       csvBtn.addEventListener('click', generateAndDownloadCsv);
-  }
+    }
   }
 
   // --- View & Tab Switching ---
   function switchView(viewName) {
-      tableViewBtn.classList.toggle('active', viewName === 'table');
-      detailsViewBtn.classList.toggle('active', viewName === 'details');
-      tableViewEl.classList.toggle('active', viewName === 'table');
-      detailsViewEl.classList.toggle('active', viewName === 'details');
+    tableViewBtn.classList.toggle('active', viewName === 'table');
+    detailsViewBtn.classList.toggle('active', viewName === 'details');
+    tableViewEl.classList.toggle('active', viewName === 'table');
+    detailsViewEl.classList.toggle('active', viewName === 'details');
   }
   function switchTab(tabName) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      document.querySelector(`.tab[data-tab="${tabName}"]`)?.classList.add('active');
-      document.getElementById(tabName + 'Tab')?.classList.add('active');
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector(`.tab[data-tab="${tabName}"]`)?.classList.add('active');
+    document.getElementById(tabName + 'Tab')?.classList.add('active');
   }
 
-   // --- Sorting Logic ---
-   function setSort(field) {
-        // Check if sorting by jobSummary field
-        const isJobSummarySort = field.startsWith('jobSummaryData.');
-        const sortField = isJobSummarySort ? field.split('.')[1] : field;
+  // --- Sorting Logic ---
+  function setSort(field) {
+    const isJobSummarySort = field.startsWith('jobSummaryData.');
+    const sortField = isJobSummarySort ? field.split('.')[1] : field;
 
-        if (currentSort.field === field) {
-            currentSort.ascending = !currentSort.ascending;
+    if (currentSort.field === field) {
+      currentSort.ascending = !currentSort.ascending;
+    } else {
+      currentSort.field            = field;
+      currentSort.isJobSummarySort = isJobSummarySort;
+      currentSort.sortField        = sortField;
+      currentSort.ascending        = true;
+    }
+    document.querySelectorAll('#tableView th[data-sort]').forEach(th => {
+      th.classList.remove('sort-asc', 'sort-desc');
+      if (th.getAttribute('data-sort') === field) {
+        th.classList.add(currentSort.ascending ? 'sort-asc' : 'sort-desc');
+      }
+    });
+  }
+
+  function sortData(data) {
+    const { field, sortField, isJobSummarySort, ascending } = currentSort;
+    if (!data) return [];
+
+    const getValue = (item) => {
+      if (isJobSummarySort) {
+        return jobSummaryData?.[sortField] ?? '';
+      } else {
+        return item?.[sortField] ?? '';
+      }
+    };
+
+    return [...data].sort((a, b) => {
+      let aValue = getValue(a);
+      let bValue = getValue(b);
+
+      if (['contractFee', 'firstOnAir', 'contractEnd'].includes(sortField)) {
+        if (sortField === 'contractFee') {
+          aValue = parseFloat(aValue) || 0;
+          bValue = parseFloat(bValue) || 0;
         } else {
-            currentSort.field = field; // Store the full field path if needed
-            currentSort.isJobSummarySort = isJobSummarySort; // Track if it's job summary
-            currentSort.sortField = sortField; // Store the actual field name
-            currentSort.ascending = true;
+          aValue = aValue ? new Date(aValue).getTime() : null;
+          bValue = bValue ? new Date(bValue).getTime() : null;
+          if (aValue === null && bValue === null) return 0;
+          if (aValue === null) return ascending ? -1 : 1;
+          if (bValue === null) return ascending ? 1 : -1;
         }
-        // Update header classes visually
-        document.querySelectorAll('#tableView th[data-sort]').forEach(th => {
-            th.classList.remove('sort-asc', 'sort-desc');
-            if (th.getAttribute('data-sort') === field) {
-                th.classList.add(currentSort.ascending ? 'sort-asc' : 'sort-desc');
-            }
-        });
-    }
+        return ascending ? aValue - bValue : bValue - aValue;
+      }
 
-    function sortData(data) {
-        const { field, sortField, isJobSummarySort, ascending } = currentSort;
-        if (!data) return [];
+      const comparison = String(aValue).localeCompare(String(bValue), undefined, { sensitivity: 'base' });
+      return ascending ? comparison : -comparison;
+    });
+  }
 
-        // Get the value based on whether it's job summary or talent details
-        const getValue = (item) => {
-            if (isJobSummarySort) {
-                return jobSummaryData?.[sortField] ?? '';
-            } else {
-                return item?.[sortField] ?? '';
-            }
-        };
-
-        return [...data].sort((a, b) => {
-            let aValue = getValue(a);
-            let bValue = getValue(b);
-
-            // Handle specific types
-            if (['contractFee', 'firstOnAir', 'contractEnd'].includes(sortField)) {
-                 if (sortField === 'contractFee') {
-                     aValue = parseFloat(aValue) || 0;
-                     bValue = parseFloat(bValue) || 0;
-                 } else { // Date fields
-                     aValue = aValue ? new Date(aValue).getTime() : null;
-                     bValue = bValue ? new Date(bValue).getTime() : null;
-                     if (aValue === null && bValue === null) return 0;
-                     if (aValue === null) return ascending ? -1 : 1;
-                     if (bValue === null) return ascending ? 1 : -1;
-                 }
-                 return ascending ? aValue - bValue : bValue - aValue;
-            }
-            // Default string sort (case-insensitive)
-            const comparison = String(aValue).localeCompare(String(bValue), undefined, { sensitivity: 'base' });
-            return ascending ? comparison : -comparison;
-        });
-    }
+  function getQueryParam(param) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(param);
+  }
 
   // --- Data Loading ---
   async function loadJobDetails() {
+    let jobNum = getQueryParam("jobNumber");
+    const jobId = getQueryParam("jobId");
+
+    if (!jobNum && !jobId) {
+      document.getElementById('jobNumber').textContent = `No job number specified in the URL.`;
+      document.getElementById('error').textContent     = "No job number or ID specified in the URL.";
+      document.getElementById('error').style.display   = 'block';
+      document.getElementById('loading').style.display = 'none';
+      return;
+    }
+
+    if (!jobNum && jobId) {
+      try {
+        const response = await fetch(`/.netlify/functions/fetchJobById?recordId=${encodeURIComponent(jobId)}`);
+        if (!response.ok) throw new Error(`API Error (${response.status}): ${await response.text()}`);
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        if (data.jobNumber) {
+          jobNum = data.jobNumber;
+        } else {
+          throw new Error("Job number not found in the record");
+        }
+      } catch (error) {
+        console.error("Error fetching job by ID:", error);
+        document.getElementById('error').textContent     = `Failed to load job details: ${error.message}`;
+        document.getElementById('error').style.display   = 'block';
+        document.getElementById('loading').style.display = 'none';
+        return;
+      }
+    }
+
+    document.getElementById('jobNumber').textContent = `Job #: ${jobNum}`;
+
     try {
       showLoading("Loading Job Details...");
-      const response = await fetch(`/.netlify/functions/fetchJobTracker?jobNumber=${encodeURIComponent(jobNumber)}`);
+      const response = await fetch(`/.netlify/functions/fetchJobTracker?jobNumber=${encodeURIComponent(jobNum)}`);
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`API Error (${response.status}): ${errorText || response.statusText}`);
       }
       const data = await response.json();
-      if (data.error) { throw new Error(data.error); }
+      if (data.error) throw new Error(data.error);
       if (!data.jobSummary || !data.talentDetails) {
-           throw new Error("API response missing 'jobSummary' or 'talentDetails'.");
+        throw new Error("API response missing 'jobSummary' or 'talentDetails'.");
       }
-      jobSummaryData = data.jobSummary;
+      jobSummaryData    = data.jobSummary;
       talentDetailsData = data.talentDetails;
       console.log("Job Summary Data:", jobSummaryData);
       console.log("Talent Details Data:", talentDetailsData);
-      populateUI(); // Call function to update all UI parts
+      populateUI();
       showContent();
     } catch (error) {
       console.error("Error loading job details:", error);
@@ -353,193 +460,161 @@
 
   // --- UI Population ---
   function populateUI() {
-      updateJobHeader(jobSummaryData);
-      updateJobDashboard(jobSummaryData, talentDetailsData);
-      renderTalentSummary(talentDetailsData);
-      renderJobDetails(jobSummaryData);
-      renderDocuments(talentDetailsData);
-      renderTalentTable(); // Initial render of the main 21-col talent list
+    updateJobHeader(jobSummaryData);
+    updateJobDashboard(jobSummaryData, talentDetailsData);
+    renderTalentSummary(talentDetailsData);
+    renderJobDetails(jobSummaryData);
+    renderDocuments(talentDetailsData);
+    renderTalentTable();
   }
 
-  // --- Rendering Functions ---
   function updateJobHeader(summary) {
-    document.getElementById('jobName').textContent = summary?.jobName || 'Job Details';
-    document.getElementById('jobNumber').textContent = `Job #: ${summary?.jobNumber || jobNumber || 'Unknown'}`;
-    document.getElementById('firstOnAir').textContent = formatDate(summary?.firstOnAir, 'N/A'); // Uses overall dates
-    document.getElementById('contractEnds').textContent = formatDate(summary?.contractEnd, 'N/A'); // Uses overall dates
+    document.getElementById('jobName').textContent     = summary?.jobName || 'Job Details';
+    document.getElementById('jobNumber').textContent   = `Job #: ${summary?.jobNumber || jobNumber || 'Unknown'}`;
+    document.getElementById('firstOnAir').textContent  = formatDate(summary?.firstOnAir, 'N/A');
+    document.getElementById('contractEnds').textContent= formatDate(summary?.contractEnd, 'N/A');
   }
 
- function updateJobDashboard(summary, talentList) {
+  function updateJobDashboard(summary, talentList) {
     const talentCount = talentList?.length || 0;
-    document.getElementById('totalTalent').textContent = talentCount;
-    document.getElementById('summaryJobNumber').textContent = summary?.jobNumber || 'N/A';
-    document.getElementById('summaryClient').textContent = summary?.client || summary?.advertiser || 'N/A';
+    document.getElementById('totalTalent').textContent       = talentCount;
+    document.getElementById('summaryJobNumber').textContent  = summary?.jobNumber || 'N/A';
+    document.getElementById('summaryClient').textContent     = summary?.client || summary?.advertiser || 'N/A';
 
-    let totalValue = 0; const typeCount = {};
+    let totalValue = 0;
+    const typeCount = {};
     (talentList || []).forEach(person => {
-      const fee = parseFloat(person.contractFee); if (!isNaN(fee)) totalValue += fee;
-      const type = person.type || 'Unknown'; typeCount[type] = (typeCount[type] || 0) + 1;
+      const fee = parseFloat(person.contractFee);
+      if (!isNaN(fee)) totalValue += fee;
+      const type = person.type || 'Unknown';
+      typeCount[type] = (typeCount[type] || 0) + 1;
     });
     document.getElementById('totalContractValue').textContent = formatCurrency(totalValue, 'N/A');
-    document.getElementById('talentTypes').textContent = Object.entries(typeCount).map(([t, c]) => `${t} (${c})`).join(', ') || 'N/A';
+    document.getElementById('talentTypes').textContent       = Object.entries(typeCount)
+      .map(([t, c]) => `${t} (${c})`).join(', ') || 'N/A';
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const endDate = summary?.contractEnd ? parseDate(summary.contractEnd) : null;
-    const startDate = summary?.firstOnAir ? parseDate(summary.firstOnAir) : null;
+    const endDate   = summary?.contractEnd ? parseDate(summary.contractEnd) : null;
+    const startDate = summary?.firstOnAir    ? parseDate(summary.firstOnAir) : null;
     let status = 'Unknown', daysText = '';
     if (endDate) {
-        endDate.setHours(0,0,0,0); const daysDiff = Math.round((endDate - today) / 86400000);
-        if (daysDiff < 0) { status = 'Expired'; daysText = `Expired ${-daysDiff} days ago`; }
-        else {
-             if (startDate && startDate > today) { status = 'Upcoming'; daysText = `Starts in ${Math.ceil((startDate - today) / 86400000)} days`; }
-             else { status = 'Active'; daysText = `${daysDiff} days remaining`; }
+      endDate.setHours(0,0,0,0);
+      const daysDiff = Math.round((endDate - today) / 86400000);
+      if (daysDiff < 0) {
+        status   = 'Expired';
+        daysText = `Expired ${-daysDiff} days ago`;
+      } else {
+        if (startDate && startDate > today) {
+          status   = 'Upcoming';
+          daysText = `Starts in ${Math.ceil((startDate - today) / 86400000)} days`;
+        } else {
+          status   = 'Active';
+          daysText = `${daysDiff} days remaining`;
         }
-    } else { status = 'No End Date'; }
-    document.getElementById('jobStatus').textContent = status;
-    document.getElementById('daysRemaining').textContent = daysText;
+      }
+    } else {
+      status = 'No End Date';
+    }
+    document.getElementById('jobStatus').textContent    = status;
+    document.getElementById('daysRemaining').textContent= daysText;
   }
 
   function renderTalentSummary(talentList) {
     talentSummaryBody.innerHTML = '';
     if (!talentList || talentList.length === 0) {
-      talentSummaryBody.innerHTML = `<tr><td colspan="4">No talent records found.</td></tr>`; return;
+      talentSummaryBody.innerHTML = `<tr><td colspan="4">No talent records found.</td></tr>`;
+      return;
     }
-    const sortedTalent = sortData(talentList).slice(0, 10); // Use current sort, take top 10
+    const sortedTalent = sortData(talentList).slice(0, 10);
     sortedTalent.forEach(person => {
       const row = talentSummaryBody.insertRow();
-      row.innerHTML = `<td>${person.name||'N/A'}</td><td>${person.role||'N/A'}</td><td>${person.type||'N/A'}</td><td>${formatCurrency(person.contractFee,'N/A')}</td>`;
+      row.innerHTML = `
+        <td>${person.name  || 'N/A'}</td>
+        <td>${person.role  || 'N/A'}</td>
+        <td>${person.type  || 'N/A'}</td>
+        <td>${formatCurrency(person.contractFee,'N/A')}</td>
+      `;
     });
   }
 
-  // --- CSV Generation and Download ---
-
-  /**
-   * Escapes a value for safe inclusion in a CSV cell.
-   * - Wraps in double quotes if it contains a comma, double quote, or newline.
-   * - Doubles up existing double quotes within the value.
-   */
+  // --- CSV Generation ---
   function escapeCsvValue(value) {
-    const stringValue = value === null || value === undefined ? '' : String(value);
-    // Test if quoting is necessary: contains comma, double quote, or newline
+    const stringValue = (value === null || value === undefined) ? '' : String(value);
     if (/[",\n\r]/.test(stringValue)) {
-      // Escape double quotes by doubling them and wrap the whole thing in double quotes
       return `"${stringValue.replace(/"/g, '""')}"`;
     }
-    return stringValue; // Return as is if no special characters
+    return stringValue;
   }
 
-  /**
-   * Generates the CSV content string from the talent data.
-   */
   function generateCsvContent() {
     if (!talentDetailsData || talentDetailsData.length === 0) {
       alert("No talent data available to export.");
       return null;
     }
-    if (!jobSummaryData) {
-       alert("Job summary data is missing, CSV might be incomplete.");
-       // Continue anyway, but job-level fields will be blank
-    }
+    const jobData = jobSummaryData || {};
+    const na = '';
 
-    const jobData = jobSummaryData || {}; // Use summary data for job-level fields
-    const na = ''; // Use empty string for N/A in CSV
-
-    // 1. Define CSV Headers (matching the 21-column table order)
     const headers = [
-      "Job Tracker Primary ID", "Product", "Name of Spot", "Contract Term",
-      "First On Air", "Contract Ends", "Campaign Release/Usage",
-      "Campaign Media/Deliverables", "Territory", "Job No.", "Type",
-      "Head Shot URL", // Use URL instead of image tag
-      "Role", // Changed from Role/Name
-      "Contract URL", // Use URL instead of link
-      "Job Summary URL", // Use URL if applicable
-      "Contract Fee", "Loading", "Options", "Rollover Fee", "Voiceover",
-      "NOTES Job Tracker"
+      "Job Tracker Primary ID","Product","Name of Spot","Contract Term","First On Air",
+      "Contract Ends","Campaign Release/Usage","Campaign Media/Deliverables","Territory",
+      "Job No.","Type","Head Shot URL","Role","Contract URL","Job Summary URL",
+      "Contract Fee","Loading","Options","Rollover Fee","Voiceover","NOTES Job Tracker"
     ];
 
-    // 2. Prepare Data Rows
-    // Use the currently sorted data
     const sortedData = sortData(talentDetailsData);
 
     const rows = sortedData.map(person => {
-      // Extract data similar to createTalentRow, but prepare for CSV
-      const headshotUrl = person.headShot?.url || na;
-      const contractUrl = person.contractUrl || na;
-      const jobSummaryUrl = ""; // Usually not per-talent
-
+      const headshotUrl   = person.headShot?.url || na;
+      const contractUrl   = person.contractUrl    || na;
+      const jobSummaryUrl = "";
       const rowData = [
         person.jobTrackerPrimaryID || na,
-        jobData.product || na,
-        jobData.jobName || na,
-        person.contractTerm || na,
-        formatDate(person.firstOnAir, na), // Use consistent date format
-        formatDate(person.contractEnd, na), // Use consistent date format
-        jobData.campaignRelease || na,
-        jobData.campaignMedia || na,
-        jobData.territory || na,
-        jobData.jobNumber || na,
-        person.type || na,
-        headshotUrl, // Just the URL
-        person.role || na, // Use Role
-        contractUrl, // Just the URL
-        jobSummaryUrl, // Likely blank
-        person.contractFee === null || person.contractFee === undefined ? na : person.contractFee, // Raw fee number/string
-        person.loading || na, // Ensure these exist in talentDetailsData if needed
-        person.options || na, // Ensure these exist in talentDetailsData if needed
-        person.rolloverFee || na, // Ensure these exist in talentDetailsData if needed
-        person.voiceover || na, // Ensure these exist in talentDetailsData if needed
-        jobData.notesJobTracker || na
+        jobData.product           || na,
+        jobData.jobName           || na,
+        person.contractTerm       || na,
+        formatDate(person.firstOnAir, na),
+        formatDate(person.contractEnd, na),
+        jobData.campaignRelease   || na,
+        jobData.campaignMedia     || na,
+        jobData.territory         || na,
+        jobData.jobNumber         || na,
+        person.type               || na,
+        headshotUrl,
+        person.role               || na,
+        contractUrl,
+        jobSummaryUrl,
+        person.contractFee == null ? na : person.contractFee,
+        person.loading            || na,
+        person.options            || na,
+        person.rolloverFee        || na,
+        person.voiceover          || na,
+        jobData.notesJobTracker   || na
       ];
-
-      // Escape each value in the row
       return rowData.map(escapeCsvValue).join(',');
     });
 
-    // 3. Combine Headers and Rows
     return [headers.join(','), ...rows].join('\n');
   }
 
-  /**
-   * Triggers the download of the generated CSV content.
-   */
   function generateAndDownloadCsv() {
     console.log("Generating CSV...");
     const csvContent = generateCsvContent();
-
-    if (!csvContent) {
-      console.log("CSV generation aborted or failed.");
-      return; // Don't proceed if no content
-    }
-
-    // Create a Blob
+    if (!csvContent) return;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-
-    // Create a link element
     const link = document.createElement("a");
-
-    // Create a URL for the Blob
-    const url = URL.createObjectURL(blob);
+    const url  = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-
-    // Suggest a filename
     const safeJobNumber = jobNumber ? jobNumber.replace(/[^a-z0-9]/gi, '_') : 'data';
-    const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const timestamp     = new Date().toISOString().slice(0, 10);
     link.setAttribute("download", `job_${safeJobNumber}_talent_${timestamp}.csv`);
-
-    // Append the link to the body (required for Firefox), hide it, click it, remove it
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
-    // Optional: Revoke the object URL after a short delay
-    // setTimeout(() => URL.revokeObjectURL(url), 100);
-
     console.log("CSV download initiated.");
   }
 
-  // Renders the main 21-COLUMN talent table
-    // Renders the main 21-COLUMN talent table
+  // --- Table Rendering ---
   function renderTalentTable() {
     talentTableBody.innerHTML = '';
     if (!talentDetailsData || talentDetailsData.length === 0) {
@@ -549,149 +624,176 @@
     const sortedData = sortData(talentDetailsData);
 
     if (currentGroup === 'none') {
-        sortedData.forEach(person => talentTableBody.appendChild(createTalentRow(person)));
+      sortedData.forEach(person => talentTableBody.appendChild(createTalentRow(person)));
     } else {
-        // Grouping logic
-        const groups = {};
-        const defaultGroupName = currentGroup === 'agency' ? 'Unknown Agency' : 'Unknown'; // Specific default for agency
-
-        sortedData.forEach(person => {
-            // Use person[currentGroup]. If null or empty, use the default group name.
-            const groupValue = person[currentGroup] || defaultGroupName;
-            if (!groups[groupValue]) groups[groupValue] = [];
-            groups[groupValue].push(person);
-        });
-
-        Object.keys(groups).sort((a, b) => {
-            // Ensure "Unknown Agency" group appears last
-            if (a === defaultGroupName) return 1;
-            if (b === defaultGroupName) return -1;
-            return a.localeCompare(b); // Sort other groups alphabetically
-        }).forEach(groupValue => {
-            const headerRow = talentTableBody.insertRow();
-            headerRow.className = 'group-header';
-            // Display the determined groupValue (which will be the name or "Unknown Agency")
-            headerRow.innerHTML = `<td colspan="21">${groupValue} (${groups[groupValue].length})</td>`;
-            groups[groupValue].forEach(person => talentTableBody.appendChild(createTalentRow(person)));
-        });
+      const groups = {};
+      const defaultGroupName = currentGroup === 'agency' ? 'Unknown Agency' : 'Unknown';
+      sortedData.forEach(person => {
+        const groupValue = person[currentGroup] || defaultGroupName;
+        if (!groups[groupValue]) groups[groupValue] = [];
+        groups[groupValue].push(person);
+      });
+      Object.keys(groups).sort((a, b) => {
+        if (a === defaultGroupName) return 1;
+        if (b === defaultGroupName) return -1;
+        return a.localeCompare(b);
+      }).forEach(groupValue => {
+        const headerRow = talentTableBody.insertRow();
+        headerRow.className = 'group-header';
+        headerRow.innerHTML = `<td colspan="21">${groupValue} (${groups[groupValue].length})</td>`;
+        groups[groupValue].forEach(person => talentTableBody.appendChild(createTalentRow(person)));
+      });
     }
-}
+  }
 
-  // Creates a single row for the 21-COLUMN talent table
-  // Uses 'person' from talentDetailsData and 'jobSummaryData' for job-level fields
   function createTalentRow(person) {
     const row = document.createElement('tr');
-    const na = 'N/A'; // Default value
-
-    // --- Get Talent Specific Data ---
-    const headshot = person.headShot;
-    const headshotHtml = headshot ? `<img src="${headshot.thumbnails?.small?.url || headshot.url}" alt="Headshot" title="${headshot.filename || ''}">` : "";
-    const contractLink = person.contractUrl ? `<a href="${person.contractUrl}" class="doc-link" target="_blank">View</a>` : "";
-    // Job Summary doc usually isn't per-talent, maybe link to job summary tab? Or leave blank.
-    const jobSummaryLink = ""; // Decide if needed
-
-    // --- Get Job Level Data (from global jobSummaryData) ---
-    const jobData = jobSummaryData || {}; // Fallback to empty object
+    const na  = 'N/A';
+    const headshot = person.headShot
+      ? `<img src="${person.headShot.thumbnails?.small?.url || person.headShot.url}" alt="Headshot" title="${person.headShot.filename || ''}">`
+      : '';
+    const contractLink = person.contractUrl
+      ? `<a href="${person.contractUrl}" class="doc-link" target="_blank">View</a>`
+      : '';
+    const jobData = jobSummaryData || {};
 
     row.innerHTML = `
       <td>${person.jobTrackerPrimaryID || na}</td>
-      <td>${jobData.product || na}</td>
-      <td>${jobData.jobName || na}</td>
-      <td>${person.contractTerm || na}</td>
+      <td>${jobData.product   || na}</td>
+      <td>${jobData.jobName   || na}</td>
+      <td>${person.contractTerm|| na}</td>
       <td>${formatDate(person.firstOnAir, na)}</td>
       <td>${formatDate(person.contractEnd, na)}</td>
-      <td>${jobData.campaignRelease || na}</td>
-      <td>${jobData.campaignMedia || na}</td>
-      <td>${jobData.territory || na}</td>
-      <td>${jobData.jobNumber || na}</td>
-      <td>${person.type || na}</td>
-      <td class="headshot">${headshotHtml}</td>
-      <td>${person.role || na}</td>
+      <td>${jobData.campaignRelease|| na}</td>
+      <td>${jobData.campaignMedia  || na}</td>
+      <td>${jobData.territory      || na}</td>
+      <td>${jobData.jobNumber      || na}</td>
+      <td>${person.type            || na}</td>
+      <td class="headshot">${headshot}</td>
+      <td>${person.role            || na}</td>
       <td>${contractLink}</td>
-      <td>${jobSummaryLink}</td>
+      <td></td>
       <td>${formatCurrency(person.contractFee, na)}</td>
-      <td>${person.loading || na}</td> <td>${person.options || na}</td> <td>${person.rolloverFee || na}</td> <td>${person.voiceover || na}</td> <td>${jobData.notesJobTracker || na}</td>
+      <td>${person.loading     || na}</td>
+      <td>${person.options     || na}</td>
+      <td>${person.rolloverFee || na}</td>
+      <td>${person.voiceover   || na}</td>
+      <td>${jobData.notesJobTracker || na}</td>
     `;
     return row;
   }
 
-  // Render aggregated job details (Job Info tab, uses jobSummaryData)
+  // --- Details & Documents ---
   function renderJobDetails(summary) {
     jobDetailsContent.innerHTML = '';
-    if (!summary) { jobDetailsContent.innerHTML = `<tr><td colspan="2">No job summary.</td></tr>`; return; }
+    if (!summary) {
+      jobDetailsContent.innerHTML = `<tr><td colspan="2">No job summary.</td></tr>`;
+      return;
+    }
     const fields = [
-      { label: 'Job Number', value: summary.jobNumber }, { label: 'Job Name', value: summary.jobName },
-      { label: 'Client / Advertiser', value: summary.client || summary.advertiser }, { label: 'Product', value: summary.product },
-      { label: 'Job Description', value: summary.jobDescription }, { label: 'Campaign Release/Usage', value: summary.campaignRelease },
-      { label: 'Campaign Media/Deliverables', value: summary.campaignMedia }, { label: 'Territory', value: summary.territory },
-      { label: 'Overall First On Air', value: formatDate(summary.firstOnAir, 'N/A') }, { label: 'Overall Contract End', value: formatDate(summary.contractEnd, 'N/A') },
+      { label: 'Job Number', value: summary.jobNumber },
+      { label: 'Job Name', value: summary.jobName },
+      { label: 'Client / Advertiser', value: summary.client || summary.advertiser },
+      { label: 'Product', value: summary.product },
+      { label: 'Job Description', value: summary.jobDescription },
+      { label: 'Campaign Release/Usage', value: summary.campaignRelease },
+      { label: 'Campaign Media/Deliverables', value: summary.campaignMedia },
+      { label: 'Territory', value: summary.territory },
+      { label: 'Overall First On Air', value: formatDate(summary.firstOnAir, 'N/A') },
+      { label: 'Overall Contract End', value: formatDate(summary.contractEnd, 'N/A') },
       { label: 'Job Notes', value: summary.notesJobTracker }
     ];
-    let content = ''; fields.forEach(f => { if(f.value) content += `<tr><th>${f.label}</th><td>${f.value}</td></tr>`; });
+    let content = '';
+    fields.forEach(f => {
+      if (f.value) content += `<tr><th>${f.label}</th><td>${f.value}</td></tr>`;
+    });
     jobDetailsContent.innerHTML = content || `<tr><td colspan="2">No details available.</td></tr>`;
   }
 
-  // Render all unique documents (All Documents tab, uses talentDetailsData)
   function renderDocuments(talentList) {
-    documentsContent.innerHTML = ''; const allDocs = new Map();
+    documentsContent.innerHTML = '';
+    const allDocs = new Map();
     (talentList || []).forEach(person => {
-        const name = person.name || 'Talent';
-        if (person.dealMemoUrl && !allDocs.has(person.dealMemoUrl)) allDocs.set(person.dealMemoUrl, { name: `${name} - Deal Memo`, url: person.dealMemoUrl });
-        if (person.contractUrl && !allDocs.has(person.contractUrl)) allDocs.set(person.contractUrl, { name: `${name} - Contract/DOR`, url: person.contractUrl });
+      const name = person.name || 'Talent';
+      if (person.dealMemoUrl && !allDocs.has(person.dealMemoUrl)) {
+        allDocs.set(person.dealMemoUrl, { name: `${name} - Deal Memo`, url: person.dealMemoUrl });
+      }
+      if (person.contractUrl && !allDocs.has(person.contractUrl)) {
+        allDocs.set(person.contractUrl, { name: `${name} - Contract/DOR`, url: person.contractUrl });
+      }
     });
-    if (allDocs.size === 0) { documentsContent.innerHTML = `<p>No documents found.</p>`; return; }
+    if (allDocs.size === 0) {
+      documentsContent.innerHTML = `<p>No documents found.</p>`;
+      return;
+    }
     const sortedDocs = Array.from(allDocs.values()).sort((a, b) => a.name.localeCompare(b.name));
-    documentsContent.innerHTML = `<ul>${sortedDocs.map(doc => `<li><a href="${doc.url}" class="doc-link" target="_blank">${doc.name}</a></li>`).join('')}</ul>`;
+    documentsContent.innerHTML = `<ul>${sortedDocs.map(doc =>
+      `<li><a href="${doc.url}" class="doc-link" target="_blank">${doc.name}</a></li>`
+    ).join('')}</ul>`;
   }
 
-  // --- Utility Functions ---
-  function formatCurrency(value, defaultValue = '') { /* ... (same as before) ... */ }
-  function formatDate(dateString, defaultValue = '') { /* ... (same as before) ... */ }
-  function parseDate(dateStr) { /* ... (same as before) ... */ }
-  function showLoading(message = "Loading...") { /* ... (same as before) ... */ }
-  function showError(message) { /* ... (same as before) ... */ }
-  function showContent() { /* ... (same as before) ... */ }
-
-  // Ensure utility functions are defined here or included externally
-  // (Copying them from previous response for completeness)
+  // --- Utilities ---
   function formatCurrency(value, defaultValue = '') {
     if (value === undefined || value === null || value === '') return defaultValue;
     const numValue = parseFloat(value);
-    if (isNaN(numValue)) return String(value); // Return original string if not number
+    if (isNaN(numValue)) return String(value);
     return '$' + numValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   function formatDate(dateString, defaultValue = '') {
-      if (!dateString) return defaultValue;
-      try {
-          const date = new Date(dateString);
-          if (isNaN(date.getTime())) {
-            if (typeof dateString === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}/.test(dateString)) {
-                 const parts = dateString.split('/'); // Try DD/MM/YYYY
-                 const euDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-                 if (!isNaN(euDate.getTime())) return formatDate(euDate.toISOString(), defaultValue);
-            }
-            return defaultValue;
-          }
-          const year = date.getFullYear();
-          const month = (date.getMonth() + 1).toString().padStart(2, '0');
-          const day = date.getDate().toString().padStart(2, '0');
-          return `${year}-${month}-${day}`;
-      } catch (e) { return defaultValue; }
+    if (!dateString) return defaultValue;
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        if (typeof dateString === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}/.test(dateString)) {
+          const parts = dateString.split('/');
+          const euDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          if (!isNaN(euDate.getTime())) return formatDate(euDate.toISOString(), defaultValue);
+        }
+        return defaultValue;
+      }
+      const year  = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day   = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch {
+      return defaultValue;
+    }
   }
- function parseDate(dateStr) {
+  function parseDate(dateStr) {
     if (!dateStr) return null;
     try {
-      const date = new Date(dateStr); if (!isNaN(date.getTime())) return date;
-       if (typeof dateStr === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}/.test(dateStr)) {
-           const parts = dateStr.split('/'); const euDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-           if (!isNaN(euDate.getTime())) return euDate;
-       } return null;
-    } catch (e) { return null; }
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) return date;
+      if (typeof dateStr === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}/.test(dateStr)) {
+        const parts = dateStr.split('/');
+        const euDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        if (!isNaN(euDate.getTime())) return euDate;
+      }
+    } catch {}
+    return null;
   }
-  function showLoading(message = "Loading...") { messageAreaEl.style.display = 'block'; loadingEl.style.display = 'block'; errorEl.style.display = 'none'; contentAreaEl.style.display = 'none'; loadingEl.innerHTML = `${message} <div class="loading-spinner"></div>`; }
-  function showError(message) { messageAreaEl.style.display = 'block'; loadingEl.style.display = 'none'; errorEl.style.display = 'block'; contentAreaEl.style.display = 'none'; errorEl.textContent = message; }
-  function showContent() { messageAreaEl.style.display = 'none'; contentAreaEl.style.display = 'block'; }
+  function showLoading(message = "Loading...") {
+    messageAreaEl.style.display = 'block';
+    loadingEl.style.display     = 'block';
+    errorEl.style.display       = 'none';
+    contentAreaEl2.style.display= 'none';
+    loadingEl.innerHTML         = `${message} <div class="loading-spinner"></div>`;
+  }
+  function showError(message) {
+    messageAreaEl.style.display = 'block';
+    loadingEl.style.display     = 'none';
+    errorEl.style.display       = 'block';
+    contentAreaEl2.style.display= 'none';
+    errorEl.textContent         = message;
+  }
+  function showContent() {
+    messageAreaEl.style.display = 'none';
+    contentAreaEl2.style.display= 'block';
+  }
 
+  // Kick things off
+  setupEventListeners();
+  loadJobDetails();
 </script>
 </body>
 </html>

@@ -5,7 +5,7 @@ const Airtable = require('airtable');
 // Initialize Airtable
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);
 // --- CONFIGURATION ---
-const JOB_TABLE_ID = 'tblavZRcB3OTb37vq'; // Your Job Tracker table ID
+const JOB_TABLE_ID = 'tbl9O07R90s6qdgtK'; // Your Job Tracker table ID
 // !!! IMPORTANT: Replace with the ACTUAL Table ID or Name for your Talent Agencies table !!!
 const TALENT_AGENCIES_TABLE_ID = 'tblcXDoQyz2efkRd3'; // e.g., 'tblKxeWAZXF3Bu2yu'
 const AGENCY_NAME_FIELD = 'Name'; // The field containing the agency name in TALENT_AGENCIES_TABLE_ID
@@ -20,6 +20,7 @@ exports.handler = async function(event, context) {
   };
 
   try {
+    // Get job number from query params - this is what's passed from the frontend
     const jobNumber = event.queryStringParameters?.jobNumber;
 
     if (!jobNumber) {
@@ -32,31 +33,47 @@ exports.handler = async function(event, context) {
 
     console.log(`[fetchJobTracker] Processing request for job number: ${jobNumber}`);
 
-    // Fetch ALL raw records associated with the job number
-    const rawRecords = await fetchAllJobRecords(jobNumber);
+    // Fetch the job record directly from Airtable
+    // Note: We're using "Job Number" or "Associated Jobs" field for the filter
+    const jobRecords = await fetchJobRecords(jobNumber);
 
-    if (!rawRecords || rawRecords.length === 0) {
+    if (!jobRecords || jobRecords.length === 0) {
       return {
         statusCode: 404,
         headers,
-        body: JSON.stringify({ error: `No records found for job number: ${jobNumber}` })
+        body: JSON.stringify({ error: `No job found with job number: ${jobNumber}` })
       };
     }
 
-    // --- START: Added Steps ---
-    // 2. Extract unique Talent Agency IDs
-    const uniqueAgencyIds = extractUniqueLinkedIds(rawRecords, 'Talent Agency');
-    console.log(`[handler] Found ${uniqueAgencyIds.length} unique agency IDs.`);
+    // Get the first job record (should be only one)
+    const jobRecord = jobRecords[0];
 
-    // 3. Fetch Agency Names for the extracted IDs
-    let agencyNameMap = {}; // Initialize empty map
-    if (uniqueAgencyIds.length > 0) {
-      agencyNameMap = await fetchAgencyNames(uniqueAgencyIds); // Call the new helper
+    // Extract talent agency IDs from the job record (if any)
+    const talentAgencyIds = extractLinkedFieldIds(jobRecord.fields, "Talent Agency");
+
+    // Fetch agency names if we have any IDs
+    let agencyNameMap = {};
+    if (talentAgencyIds.length > 0) {
+      agencyNameMap = await fetchAgencyNames(talentAgencyIds);
     }
-    // --- END: Added Steps ---
 
-    // Process the raw records into a structured response
-    const { jobSummary, talentDetails } = processJobRecords(rawRecords, jobNumber, agencyNameMap); // Pass the map here
+    // Fetch talent records linked to this job if we have "Job Tracker" or "Performer Recon" fields
+    let talentRecords = [];
+
+    // Check if we have Job Tracker or Performer Recon fields
+    const jobTrackerIds = extractLinkedFieldIds(jobRecord.fields, "Job Tracker");
+    const performerReconIds = extractLinkedFieldIds(jobRecord.fields, "Performer Recon");
+
+    // Combine all IDs for talent records
+    const allTalentIds = [...new Set([...jobTrackerIds, ...performerReconIds])];
+
+    if (allTalentIds.length > 0) {
+      // Fetch talent records
+      talentRecords = await fetchTalentRecords(allTalentIds);
+    }
+
+    // Process the job and talent records into the expected format
+    const { jobSummary, talentDetails } = processJobData(jobRecord, talentRecords, agencyNameMap);
 
     // Return the structured data
     return {
@@ -78,277 +95,250 @@ exports.handler = async function(event, context) {
   }
 };
 
-// --- Helper Functions ---
-
-// Fetches all raw Airtable records for a given job number
-async function fetchAllJobRecords(jobNumber) {
+// Fetch job records by job number
+async function fetchJobRecords(jobNumber) {
   return new Promise((resolve, reject) => {
-    // This formula assumes 'jobNumber' is a Lookup/Rollup resulting in an array.
-    // Adjust if 'jobNumber' is a simple text field or linked record name.
-    const formula = `FIND("${jobNumber}", ARRAYJOIN({jobNumber}, ",")) > 0`;
-    console.log(`[Airtable Fetch] Using filter: ${formula}`);
+    // Try to match either by "Job Number" field or "Associated Jobs" field
+    const formula = `OR({Job Number} = "${jobNumber}", FIND("${jobNumber}", {Associated Jobs}) > 0)`;
+    console.log(`[fetchJobRecords] Using filter: ${formula}`);
 
-    const records = [];
-    base(JOB_TABLE_ID).select({
-      filterByFormula: formula,
-      // Consider specifying needed fields: fields: ['jobNumber', 'Person', ...]
-      // Consider sorting for predictability: sort: [{field: "createdTime", direction: "asc"}],
-    }).eachPage(
-      function page(pageRecords, fetchNextPage) {
-        pageRecords.forEach(record => records.push(record));
-        fetchNextPage();
-      },
-      function done(err) {
+    base(JOB_TABLE_ID)
+      .select({
+        filterByFormula: formula,
+        maxRecords: 1
+      })
+      .firstPage((err, records) => {
         if (err) {
-          console.error("[Airtable Fetch] Error fetching pages:", err);
+          console.error("[fetchJobRecords] Error:", err);
           return reject(err);
         }
-        console.log(`[Airtable Fetch] Fetched ${records.length} raw records.`);
-        resolve(records);
-      }
-    );
+
+        resolve(records || []);
+      });
   });
 }
 
-// --- Add This Helper Function ---
-// Extracts unique, valid Record IDs from a specific linked record field across multiple records
-function extractUniqueLinkedIds(records, fieldName) {
-    const idSet = new Set();
-    records.forEach(record => {
-        const linkedIds = record.fields[fieldName]; // This is often an array of IDs
-        if (Array.isArray(linkedIds)) {
-            linkedIds.forEach(id => {
-                if (typeof id === 'string' && id.startsWith('rec')) {
-                    idSet.add(id);
-                }
-            });
-        } else if (typeof linkedIds === 'string' && linkedIds.startsWith('rec')) {
-             idSet.add(linkedIds);
+// Fetch talent records by record IDs
+async function fetchTalentRecords(recordIds) {
+  if (!recordIds || recordIds.length === 0) {
+    return [];
+  }
+
+  return new Promise((resolve, reject) => {
+    const formula = "OR(" + recordIds.map(id => `RECORD_ID() = "${id}"`).join(",") + ")";
+    console.log(`[fetchTalentRecords] Using filter to fetch ${recordIds.length} talent records`);
+
+    base(JOB_TABLE_ID)
+      .select({
+        filterByFormula: formula
+      })
+      .all((err, records) => {
+        if (err) {
+          console.error("[fetchTalentRecords] Error:", err);
+          return reject(err);
         }
+
+        resolve(records || []);
+      });
+  });
+}
+
+// Extract IDs from a linked record field
+function extractLinkedFieldIds(fields, fieldName) {
+  if (!fields || !fields[fieldName]) {
+    return [];
+  }
+
+  const linkedField = fields[fieldName];
+
+  if (Array.isArray(linkedField)) {
+    return linkedField.filter(item => {
+      // Handle both string IDs and object records
+      if (typeof item === 'string' && item.startsWith('rec')) {
+        return true;
+      } else if (item && typeof item === 'object' && item.id) {
+        return true;
+      }
+      return false;
+    }).map(item => {
+      // Extract the ID
+      return typeof item === 'string' ? item : item.id;
     });
-    return Array.from(idSet);
+  } else if (typeof linkedField === 'string' && linkedField.startsWith('rec')) {
+    return [linkedField];
+  }
+
+  return [];
 }
 
-// --- Add This Helper Function ---
-// Fetches names from the Agencies table for a list of IDs
+// Fetch agency names by IDs
 async function fetchAgencyNames(agencyIds) {
-    // Use the constants defined at the top of the file
-    if (!TALENT_AGENCIES_TABLE_ID || TALENT_AGENCIES_TABLE_ID === 'tblYOUR_AGENCY_TABLE_ID') { // Basic check
-        console.warn("[fetchAgencyNames] TALENT_AGENCIES_TABLE_ID is not configured correctly. Skipping name fetch.");
-        return {}; // Return empty map if not configured
-    }
-    if (!agencyIds || agencyIds.length === 0) return {};
+  if (!agencyIds || agencyIds.length === 0) {
+    return {};
+  }
 
-    const batchSize = 100; // Process IDs in batches
-    const agencyNameMap = {};
-    console.log(`[fetchAgencyNames] Attempting to fetch names for ${agencyIds.length} IDs from table ${TALENT_AGENCIES_TABLE_ID}.`);
+  return new Promise((resolve, reject) => {
+    const formula = "OR(" + agencyIds.map(id => `RECORD_ID() = "${id}"`).join(",") + ")";
 
-    try {
-        for (let i = 0; i < agencyIds.length; i += batchSize) {
-            const batchIds = agencyIds.slice(i, i + batchSize);
-            const formula = "OR(" + batchIds.map(id => `RECORD_ID()='${id}'`).join(',') + ")";
-            // console.log(`[fetchAgencyNames] Fetching batch ${i/batchSize + 1} using formula (first part): ${formula.substring(0,100)}...`); // Log formula carefully
-
-            const agencyRecords = await base(TALENT_AGENCIES_TABLE_ID).select({
-                filterByFormula: formula,
-                fields: [AGENCY_NAME_FIELD] // Only fetch the specified name field
-            }).all();
-
-            agencyRecords.forEach(record => {
-                // Use nullish coalescing to handle cases where the name field might be empty/null in Airtable
-                agencyNameMap[record.id] = record.fields[AGENCY_NAME_FIELD] ?? null;
-            });
+    base(TALENT_AGENCIES_TABLE_ID)
+      .select({
+        filterByFormula: formula
+      })
+      .all((err, records) => {
+        if (err) {
+          console.error("[fetchAgencyNames] Error:", err);
+          return reject(err);
         }
-        console.log(`[fetchAgencyNames] Successfully mapped ${Object.keys(agencyNameMap).length} agency names.`);
-    } catch (error) {
-         console.error(`[fetchAgencyNames] Error fetching agency names:`, error);
-         // Return partially filled map on error
-    }
-    return agencyNameMap;
+
+        // Create a map of agency IDs to names
+        const agencyMap = {};
+        (records || []).forEach(record => {
+          agencyMap[record.id] = record.fields[AGENCY_NAME_FIELD] || record.id;
+        });
+
+        resolve(agencyMap);
+      });
+  });
 }
 
-// Processes raw Airtable records into jobSummary and talentDetails
-function processJobRecords(rawRecords, requestedJobNumber, agencyNameMap = {}) { // Add agencyNameMap parameter
-  if (!rawRecords || rawRecords.length === 0) {
+// Process job and talent data into expected format
+function processJobData(jobRecord, talentRecords, agencyNameMap) {
+  if (!jobRecord) {
     return { jobSummary: null, talentDetails: [] };
   }
 
-  // --- Create Job Summary (Aggregated/Derived Info) ---
-  const firstRecordFields = rawRecords[0].fields;
+  const fields = jobRecord.fields;
+
+  // Create job summary
   const jobSummary = {
-    jobNumber: requestedJobNumber,
-    // Aggregate common fields or use first record as fallback
-    jobName: getCommonFieldValue(rawRecords, "Job Name") ?? getArrayValue(firstRecordFields["Job Description / Product Details"]) ?? "Unnamed Job",
-    jobDescription: getCommonFieldValue(rawRecords, "Job Description / Product Details") ?? getArrayValue(firstRecordFields["Job Description / Product Details"]),
-    product: getCommonFieldValue(rawRecords, "Product") ?? firstRecordFields["Product"],
-    advertiser: getCommonFieldValue(rawRecords, "Advertiser"), // Usually consistent
-    client: getCommonClientName(rawRecords), // Attempt to find consistent client
-    campaignRelease: getCommonFieldValue(rawRecords, "Campaign Release/Usage"),
-    campaignMedia: getCommonFieldValue(rawRecords, "Campaign Media/Deliverables"),
-    territory: getCommonFieldValue(rawRecords, "Territory"),
-    // Derive overall date range
-    firstOnAir: getMinDate(rawRecords, "First On Air"),
-    contractEnd: getMaxDate(rawRecords, "Contract Ends"),
-    notesJobTracker: getCommonFieldValue(rawRecords, "NOTES Job Tracker"),
-    // Add other potentially common job-level fields if needed
+    id: jobRecord.id,
+    jobNumber: fields["Job Number"] || fields["Associated Jobs"] || "Unknown",
+    jobName: fields["Job Name"] || "Unnamed Job",
+    product: fields["Advertiser"] || fields["Client"] || "",
+    firstOnAir: fields["First On Air"] || null,
+    contractEnd: fields["Contract Ends"] || fields["Contract Ends (Calculated) Date For Sorting"] || null,
+    contractTerm: Array.isArray(fields["Contract Term"]) ? fields["Contract Term"].join(', ') : fields["Contract Term"] || null,
+    client: fields["Client"] || fields["Clients"] || fields["Advertiser"] || "",
+    campaign: fields["Campaign"] || "",
+    territory: fields["Territory"] || Array.isArray(fields["Shoot Location"]) ? fields["Shoot Location"].join(', ') : fields["Shoot Location"] || "Australia",
+    usageRights: fields["Campaign Release/Media"] || "",
+    jobDescription: fields["Job Description - Product Details"] || fields["Final Spot"] || "",
+    campaignRelease: fields["Campaign Release/Media"] || "",
+    campaignMedia: fields["Campaign Deliverables"] || fields["Final Spot"] || "",
+    notesJobTracker: fields["Jobs Notes"] || ""
   };
 
-  // --- Create Talent Details (Specific Info Per Record) ---
-  const talentDetails = rawRecords.map(record => {
-    const fields = record.fields;
-    const personName = extractLinkedName(fields["Person"], ["Legal Name", "Name"]);
-    // Get the Agency ID from the record's field
-    const agencyId = getArrayValue(fields["Talent Agency"]); // Get the first ID
+  // Process talent records
+  const talentDetails = [];
 
-    // Look up the name in the map passed to this function
-    const agencyName = agencyId ? (agencyNameMap[agencyId] || null) : null;
+  // First, add any talent from the linked records
+  talentRecords.forEach(record => {
+    const talentFields = record.fields;
 
-    // Consolidate fee logic
-    let feeValue = fields["Contract Fee"] ?? fields["Rollover (inc VO)"] ?? fields["Rollover (TO RETIRE)"] ?? fields["Contract Fee OLD"];
-    feeValue = getArrayValue(feeValue); // Handle potential array from rollup
-    const parsedFee = parseFloat(feeValue);
-    const contractFee = isNaN(parsedFee) ? feeValue : parsedFee; // Keep original string if not number (e.g., "TBD")
+    // Get agency ID and name
+    const agencyIds = extractLinkedFieldIds(talentFields, "Talent Agency");
+    let agencyName = "Unknown Agency";
 
-    return {
-      id: record.id, // Specific record ID
-      jobTrackerPrimaryID: fields["Job Tracker Primary ID"], // Keep specific ID if needed
-      name: personName || "Unknown",
-      agency: agencyName, // Use the new formula field directly,
-      type: fields["Type"] || "Unknown",
-      role: fields["Role"] || "N/A",
+    if (agencyIds.length > 0 && agencyNameMap[agencyIds[0]]) {
+      agencyName = agencyNameMap[agencyIds[0]];
+    }
+
+    // Get person name, either from direct field or lookup
+    let personName = talentFields["Person"] || talentFields["Name"] || "Unknown";
+    if (Array.isArray(personName)) {
+      // Try to extract name from array
+      if (personName.length > 0) {
+        if (typeof personName[0] === 'object' && personName[0].fields) {
+          personName = personName[0].fields["Legal Name"] || personName[0].fields["Name"] || "Unknown";
+        } else {
+          personName = personName[0];
+        }
+      }
+    }
+
+    // Get contract fee
+    let contractFee = talentFields["Contract Fee"] ||
+                     talentFields["Contract Fee OLD"] ||
+                     null;
+
+    // Get head shot
+    const headShot = talentFields["Head Shot"] ?
+                    (Array.isArray(talentFields["Head Shot"]) ? talentFields["Head Shot"][0] : talentFields["Head Shot"]) :
+                    null;
+
+    talentDetails.push({
+      id: record.id,
+      jobTrackerPrimaryID: record.id,
+      name: personName,
+      agency: agencyName,
+      type: talentFields["Type"] || "Unknown",
+      role: talentFields["Role"] || "N/A",
       contractFee: contractFee,
-      firstOnAir: getArrayValue(fields["First On Air"]), // Date specific to this record
-      contractEnd: getArrayValue(fields["Contract Ends"]), // Date specific to this record
-      contractTerm: getArrayValue(fields["Contract Term"]), // Term specific to this record
-      dealMemoUrl: getAttachmentUrl(fields["Deal Memo"]),
-      contractUrl: getAttachmentUrl(fields["Contract / DOR"]),
-      headShot: getAttachmentObject(fields["Head Shot"]), // Pass thumbnail/URL object
-      // Include other relevant fields PER talent record if needed
-      // e.g., loading: fields["Loading"], options: fields["Options"], etc.
-    };
+      firstOnAir: talentFields["First On Air"] || fields["First On Air"] || null,
+      contractEnd: talentFields["Contract Ends"] || talentFields["Contract Ends (Calculated)"] ||
+                  fields["Contract Ends"] || fields["Contract Ends (Calculated) Date For Sorting"] || null,
+      contractTerm: talentFields["Contract Term"] || fields["Contract Term"] || null,
+      dealMemoUrl: getAttachmentUrl(talentFields["Deal Memo"]),
+      contractUrl: getAttachmentUrl(talentFields["Contract / DOR"]),
+      headShot: getAttachmentObject(headShot),
+      loading: talentFields["Loading"] || talentFields["Option/Loading Details"] || null,
+      options: talentFields["Options"] || null,
+      rolloverFee: talentFields["Rollover (inc VO)"] || null,
+      voiceover: talentFields["Voiceover Usage"] || null
+    });
   });
 
-  console.log("[Process Records] Generated jobSummary:", jobSummary);
-  console.log(`[Process Records] Generated ${talentDetails.length} talentDetails.`);
+  // If no talent records but we have performer information directly on the job
+  if (talentDetails.length === 0) {
+    // We might want to add a placeholder talent record based on job data
+    talentDetails.push({
+      id: jobRecord.id,
+      jobTrackerPrimaryID: jobRecord.id,
+      name: "See Job Details",
+      agency: "N/A",
+      type: fields["Type"] || "Unknown",
+      role: "N/A",
+      contractFee: fields["Total Performer Fees"] || null,
+      firstOnAir: fields["First On Air"] || null,
+      contractEnd: fields["Contract Ends"] || fields["Contract Ends (Calculated) Date For Sorting"] || null,
+      contractTerm: fields["Contract Term"] || null,
+      dealMemoUrl: null,
+      contractUrl: null,
+      headShot: null
+    });
+  }
+
+  console.log(`[processJobData] Generated job summary and ${talentDetails.length} talent details`);
 
   return { jobSummary, talentDetails };
 }
 
-
-// Safely gets the first element of an array field, or the value itself
-function getArrayValue(fieldValue) {
-  return (Array.isArray(fieldValue) && fieldValue.length > 0) ? fieldValue[0] : fieldValue;
-}
-
-// Gets a field value if it's consistent across all records
-function getCommonFieldValue(records, fieldName) {
-  if (!records || records.length === 0) return undefined;
-  const firstValue = getArrayValue(records[0].fields[fieldName]);
-  for (let i = 1; i < records.length; i++) {
-    if (getArrayValue(records[i].fields[fieldName]) !== firstValue) {
-      return undefined; // Values differ
-    }
-  }
-  return firstValue; // All values are the same
-}
-
-// Extracts name from a linked record field (handles ID or expanded object)
-function extractLinkedName(fieldValue, nameFields = ["Name"]) {
-    const value = getArrayValue(fieldValue); // Get first item/ID from potential array
-    if (!value) return null; // No value found
-
-    if (typeof value === 'object' && value !== null && value.fields) {
-        // Expanded record object - Name likely available
-        for (const nameField of nameFields) {
-            if (value.fields[nameField]) {
-                // Found the name in the specified fields
-                return value.fields[nameField];
-            }
-        }
-        // Expanded object, but couldn't find name field, return ID as fallback
-        console.warn(`Expanded record ${value.id} missing fields: ${nameFields.join(', ')}`);
-        return value.id;
-    } else if (typeof value === 'string' && value.startsWith('rec')) {
-        // Just a record ID string - Return null or a placeholder
-        // Returning null allows the frontend to group under "Unknown" or similar.
-        // console.log(`Found only Record ID for linked field: ${value}`);
-        return null; // ** CHANGED: Return null instead of "ID: rec..." **
-        // Or, return a placeholder: return `Agency ID: ${value}`;
-    }
-    // Fallback if it's neither object nor rec ID (maybe name stored directly?)
-    return typeof value === 'string' ? value : null;
-}
-
-// Gets the earliest valid date from a field across records
-function getMinDate(records, fieldName) {
-  let minDate = null;
-  records.forEach(record => {
-    const dateValue = getArrayValue(record.fields[fieldName]);
-    if (dateValue) {
-      try {
-        const currentDate = new Date(dateValue);
-        if (!isNaN(currentDate.getTime()) && (minDate === null || currentDate < minDate)) {
-          minDate = currentDate;
-        }
-      } catch (e) { /* ignore */ }
-    }
-  });
-  return minDate ? minDate.toISOString().split('T')[0] : null; // YYYY-MM-DD
-}
-
-// Gets the latest valid date from a field across records
-function getMaxDate(records, fieldName) {
-  let maxDate = null;
-  records.forEach(record => {
-    const dateValue = getArrayValue(record.fields[fieldName]);
-    if (dateValue) {
-      try {
-        const currentDate = new Date(dateValue);
-        if (!isNaN(currentDate.getTime()) && (maxDate === null || currentDate > maxDate)) {
-          maxDate = currentDate;
-        }
-      } catch (e) { /* ignore */ }
-    }
-  });
-  return maxDate ? maxDate.toISOString().split('T')[0] : null; // YYYY-MM-DD
-}
-
-// Get the first attachment URL
+// Get first attachment URL
 function getAttachmentUrl(fieldValue) {
-  const attachment = getArrayValue(fieldValue);
-  return attachment?.url ?? null;
-}
-
-// Get the first attachment object (including thumbnails if available)
-function getAttachmentObject(fieldValue) {
-    const attachment = getArrayValue(fieldValue);
-    // Return relevant parts or the whole object
-    if (attachment?.url) {
-        return {
-            url: attachment.url,
-            filename: attachment.filename,
-            thumbnails: attachment.thumbnails // Contains small, large, full
-        };
-    }
+  if (!fieldValue) {
     return null;
+  }
+
+  if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+    return fieldValue[0].url || null;
+  }
+
+  return fieldValue.url || null;
 }
 
+// Get attachment object with thumbnails
+function getAttachmentObject(attachment) {
+  if (!attachment) {
+    return null;
+  }
 
-// Attempts to find a common client name
-function getCommonClientName(records) {
-    // Try 'Clients' field first (might be Lookup returning name or ID)
-    let clientName = getCommonFieldValue(records, "Clients");
+  if (attachment.url) {
+    return {
+      url: attachment.url,
+      filename: attachment.filename || 'attachment',
+      thumbnails: attachment.thumbnails || null
+    };
+  }
 
-    // If 'Clients' gave an ID or was inconsistent, try 'Advertiser'
-    if (!clientName || (typeof clientName === 'string' && clientName.startsWith('rec'))) {
-        clientName = getCommonFieldValue(records, "Advertiser");
-    }
-
-    // If 'Client' field exists and is consistent, it might be useful too
-    if (!clientName) {
-        clientName = getCommonFieldValue(records, "Client");
-    }
-
-    // Ensure the final result isn't an array if it came from a lookup
-    return getArrayValue(clientName);
+  return null;
 }

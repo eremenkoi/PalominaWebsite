@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airtable Field Inspector</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    h1, h2 {
+      color: #2c3e50;
+    }
+
+    .container {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background-color: #0069d9;
+    }
+
+    .result {
+      margin-top: 20px;
+      background-color: white;
+      padding: 20px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+      font-style: italic;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Airtable Field Inspector</h1>
+    <p>This tool helps you inspect the fields available in your Airtable tables.</p>
+
+    <div class="form-group">
+      <label for="tableId">Table ID:</label>
+      <input type="text" id="tableId" placeholder="tbl9O07R90s6qdgtK" value="tbl9O07R90s6qdgtK">
+    </div>
+
+    <button id="inspectBtn">Inspect Fields</button>
+
+    <div id="loading" class="loading" style="display: none;">
+      Loading field information...
+    </div>
+
+    <div id="result" class="result" style="display: none;">
+      <h2>Field Information</h2>
+      <div id="tableInfo"></div>
+
+      <table id="fieldTable">
+        <thead>
+          <tr>
+            <th>Field Name</th>
+            <th>Type</th>
+            <th>Element Type</th>
+            <th>Sample Value</th>
+          </tr>
+        </thead>
+        <tbody id="fieldTableBody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('inspectBtn').addEventListener('click', inspectFields);
+
+    async function inspectFields() {
+      const tableId = document.getElementById('tableId').value.trim();
+      if (!tableId) {
+        alert('Please enter a table ID');
+        return;
+      }
+
+      // Show loading state
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('result').style.display = 'none';
+
+      try {
+        const response = await fetch(`/.netlify/functions/inspectFields?tableId=${encodeURIComponent(tableId)}`);
+        const data = await response.json();
+
+        if (response.ok) {
+          renderResults(data);
+        } else {
+          alert(`Error: ${data.error || 'Unknown error'}`);
+        }
+      } catch (error) {
+        alert(`Error: ${error.message}`);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+
+    function renderResults(data) {
+      // Update table info
+      document.getElementById('tableInfo').innerHTML = `
+        <p><strong>Table ID:</strong> ${data.tableId}</p>
+        <p><strong>Number of Fields:</strong> ${data.fieldCount}</p>
+      `;
+
+      // Update field table
+      const tableBody = document.getElementById('fieldTableBody');
+      tableBody.innerHTML = '';
+
+      for (const fieldName in data.fieldInfo) {
+        const fieldData = data.fieldInfo[fieldName];
+        const row = document.createElement('tr');
+
+        row.innerHTML = `
+          <td>${escapeHtml(fieldName)}</td>
+          <td>${escapeHtml(fieldData.type)}</td>
+          <td>${escapeHtml(fieldData.elementType || 'N/A')}</td>
+          <td>${escapeHtml(fieldData.sample)}</td>
+        `;
+
+        tableBody.appendChild(row);
+      }
+
+      // Show result
+      document.getElementById('result').style.display = 'block';
+    }
+
+    function escapeHtml(text) {
+      if (text === null || text === undefined) {
+        return '';
+      }
+
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
